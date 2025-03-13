@@ -35,36 +35,10 @@ build:
   # (Retaining commented items, adding a minimal pre_create_environment job)
   jobs:
     pre_create_environment:
-      - echo "Running essential doc_forge modules..."
+      - echo "Running essential doc_forge modules..
+      - pip insatll -e .  # Install the package itself first
       - python -m doc_forge.update_toctrees
       - python -m doc_forge.fix_inline_refs
-
-    # post_checkout:
-    #   - echo "Initializing forge_repo documentation build..."
-    # pre_create_environment:
-    #   - echo "🔧 Preparing environment with Eidosian rigor"
-    # create_environment:
-    #   - echo "Creating build environment..."
-    # install:
-    #   - echo "Installing Python dependencies..."
-    #   - pip install --upgrade pip
-    #   - pip install -e .
-    #   - pip install -r docs/requirements.txt
-    # post_install:
-    #   - echo "Dependencies installed successfully."
-    # build:
-    #   html:
-    #     - echo "Building HTML documentation with Sphinx..."
-    #     - python -m sphinx -b html docs/ $READTHEDOCS_OUTPUT/html/
-    #   pdf:
-    #     - echo "Building PDF documentation with Sphinx..."
-    #     - python -m sphinx -b latex docs/ $READTHEDOCS_OUTPUT/latex/
-    #     - make -C $READTHEDOCS_OUTPUT/latex all-pdf
-    #   epub:
-    #     - echo "Building ePub documentation with Sphinx..."
-    #     - python -m sphinx -b epub docs/ $READTHEDOCS_OUTPUT/epub/
-    # post_build:
-    #   - echo "✅ Build checks Complete"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🐍 Python environment - Precision as style, flow like a river
@@ -83,18 +57,7 @@ sphinx:
   configuration: docs/conf.py  # Central source of truth
   builder: html  # Default builder for most common case
   fail_on_warning: false  # Temporarily disable to debug build issues
-  configuration_options:
-    autoapi_type: python
-    autoapi_dirs: 
-      - "./src"   # Recursively parse code under src/
-    autoapi_add_toctree_entry: true
-    autoapi_keep_files: true
-    autoapi_options:
-      - members
-      - special-members
-      - inherited-members
-      - show-module-summary
-
+  
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 📦 Output formats - Exhaustive but concise delivery
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
