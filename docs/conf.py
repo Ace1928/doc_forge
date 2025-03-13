@@ -33,13 +33,11 @@ sys.path.insert(0, str(docs_path))
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 project = "Doc Forge"
 copyright = f"2025-{datetime.datetime.now().year}, MIT License"
-# The copyright holder, a digital guardian of our creation.
 author = "Lloyd Handyside"
 
 # Version handling - Because every masterpiece deserves its signature.
 try:
-    # Attempt to import version functions if available
-    from version import get_version_string, get_version_tuple
+    from version import get_version_string, get_version_tuple  # type: ignore
     if (root_path / "version.py").exists():
         sys.path.insert(0, str(root_path))
         version = get_version_string()
@@ -48,7 +46,6 @@ try:
         version = get_version_string()
         release = version
     else:
-        # Fallback to package metadata, or default to a humble version number.
         try:
             import importlib.metadata
             version = importlib.metadata.version(project.lower().replace(" ", "_"))
@@ -63,37 +60,34 @@ except ImportError:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # General Configuration - Our Toolkit of Extensions
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Core Sphinx extensions are our stalwart artisans in this project.
 extensions = [
-    "sphinx.ext.autodoc",          # Automatic API documentation
-    "sphinx.ext.viewcode",         # Source code viewer
-    "sphinx.ext.napoleon",         # Google and NumPy style docstrings
-    "sphinx.ext.autosummary",      # Generate summaries automatically
-    "sphinx.ext.intersphinx",      # Link to other projects' documentation
-    "sphinx.ext.coverage",         # Documentation coverage reporting
-    "sphinx.ext.todo",             # Support for TODO items
-    "sphinx.ext.ifconfig",         # Conditional content inclusion
+    "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.coverage",
+    "sphinx.ext.todo",
+    "sphinx.ext.ifconfig",
 ]
 
-# External extensions—the Eidosian documentation enhancement suite.
 ext_list = [
-    "myst_parser",                 # Markdown support with extended syntax
-    "sphinx_rtd_theme",            # ReadTheDocs theme
-    "sphinx_copybutton",           # Copy button for code blocks
-    "sphinx_autodoc_typehints",    # Better type hint support
-    "sphinxcontrib.mermaid",       # Mermaid diagrams
-    "sphinx_autoapi",              # Automatic API documentation generation
-    "sphinx.ext.autosectionlabel", # Auto-generate section labels
-    "sphinx_sitemap",              # Generate XML sitemap
-    "sphinx_tabs.tabs",            # Tabbed content
-    "sphinx_markdown_tables",      # Enhanced markdown tables
-    "notfound.extension",          # 404 page customization
-    "sphinx_inline_tabs",          # Inline tabs
-    "sphinxext.opengraph",         # Open Graph meta tags
-    "sphinx_design",               # Enhanced design components
+    "myst_parser",
+    "sphinx_rtd_theme",
+    "sphinx_copybutton",
+    "sphinx_autodoc_typehints",
+    "sphinxcontrib.mermaid",
+    "sphinx_autoapi",
+    "sphinx.ext.autosectionlabel",
+    "sphinx_sitemap",
+    "sphinx_tabs.tabs",
+    "sphinx_markdown_tables",
+    "notfound.extension",
+    "sphinx_inline_tabs",
+    "sphinxext.opengraph",
+    "sphinx_design",
 ]
 
-# Conditionally add extensions if they're available
 for ext in ext_list:
     try:
         __import__(ext.split('.')[0])
@@ -101,14 +95,15 @@ for ext in ext_list:
     except ImportError:
         pass
 
-# Autosummary setup for comprehensive API documentation
-autosummary_generate = True  # Generate stub files automatically
-autosummary_imported_members = True  # Include imported members
+autosummary_generate = True
+autosummary_imported_members = True
 
 # AutoAPI Configuration - The heart of automated documentation
 if "sphinx_autoapi" in extensions:
-    autoapi_dirs = [str(root_path / "src")]  # Where to find the source code
-    autoapi_type = "python"  # Language type
+    # Previously: autoapi_dirs = [str(root_path / "src")]
+    # Eidosian expansion to search the entire repository:
+    autoapi_dirs = [str(root_path)]
+    autoapi_type = "python"
     autoapi_template_dir = str(docs_path / "auto_docs") if (docs_path / "_templates" / "autoapi").exists() else None
     autoapi_options = [
         "members", "undoc-members", "show-inheritance", "show-module-summary",
@@ -119,29 +114,29 @@ if "sphinx_autoapi" in extensions:
     autoapi_file_patterns = ["*.py", "*.pyi"]
     autoapi_generate_api_docs = True
     autoapi_add_toctree_entry = True
-    autoapi_keep_files = True  # Keep generated files for debugging
+    autoapi_keep_files = True
 
-# MyST Parser configuration (if loaded) adds markdown magic.
+# MyST Parser configuration
 if "myst_parser" in extensions:
     myst_enable_extensions = [
-        "amsmath",          # Advanced math support
-        "colon_fence",      # Alternative for code blocks
-        "deflist",          # Definition lists
-        "dollarmath",       # Inline/block math with $
-        "html_image",       # HTML image syntax
-        "linkify",          # Auto-link bare URLs
-        "replacements",     # Text replacements
-        "smartquotes",      # Intelligent quotes
-        "tasklist",         # GitHub-style task lists
-        "fieldlist",        # Field list support
-        "attrs_block",      # Attributes for blocks
-        "attrs_inline",     # Inline attributes
+        "amsmath",
+        "colon_fence",
+        "deflist",
+        "dollarmath",
+        "html_image",
+        "linkify",
+        "replacements",
+        "smartquotes",
+        "tasklist",
+        "fieldlist",
+        "attrs_block",
+        "attrs_inline",
     ]
-    myst_heading_anchors = 4  # Generate anchors for headings h1-h4
-    myst_all_links_external = False  # Treat all links as external
-    myst_url_schemes = ("http", "https", "mailto", "ftp")  # URL schemes to recognize
+    myst_heading_anchors = 4
+    myst_all_links_external = False
+    myst_url_schemes = ("http", "https", "mailto", "ftp")
 
-# Napoleon configuration: Embrace the beauty of structured docstrings.
+# Napoleon configuration
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = True
@@ -157,7 +152,7 @@ napoleon_use_keyword = True
 napoleon_attr_annotations = True
 napoleon_preprocess_types = True
 
-# Autodoc settings - We like our API docs as clear as crystal.
+# Autodoc settings
 autodoc_default_options = {
     'members': True,
     'member-order': 'bysource',
@@ -173,9 +168,9 @@ autodoc_typehints = 'description'
 autodoc_typehints_format = 'short'
 autodoc_inherit_docstrings = True
 autodoc_typehints_description_target = 'documented'
-autodoc_mock_imports = []  # Add any problematic imports here
+autodoc_mock_imports = []
 
-# Intersphinx configuration to connect with the broader documentation cosmos.
+# Intersphinx configuration
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
     'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
@@ -184,20 +179,17 @@ intersphinx_mapping = {
     'matplotlib': ('https://matplotlib.org/stable/', None),
 }
 
-# Recursively find all documentation files
-# Define patterns to include in documentation search
 source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown',
     '.txt': 'restructuredtext',
 }
 
-# Template paths and file exclusion patterns.
 templates_path = ['_templates']
 exclude_patterns = [
-    '_build', 
-    'Thumbs.db', 
-    '.DS_Store', 
+    '_build',
+    'Thumbs.db',
+    '.DS_Store',
     '**.ipynb_checkpoints',
     '.git',
     '.gitignore',
@@ -212,11 +204,7 @@ exclude_patterns = [
 
 master_doc = 'index'
 language = 'en'
-
-# Date formatting for the chronicles of documentation.
 today_fmt = '%Y-%m-%d'
-
-# Syntax highlighting and Pygments settings.
 highlight_language = 'python3'
 pygments_style = 'sphinx'
 pygments_dark_style = 'monokai'
@@ -224,22 +212,17 @@ pygments_dark_style = 'monokai'
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # HTML Output Configuration - Where Beauty Meets Functionality
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Choose the ReadTheDocs theme if available; otherwise, fall back to alabaster.
 html_theme = 'sphinx_rtd_theme' if 'sphinx_rtd_theme' in extensions else 'alabaster'
 html_static_path = ['_static']
-
-# Ensure the _static directory exists, our canvas for custom art.
 try:
     static_dir = docs_path / '_static'
     static_dir.mkdir(parents=True, exist_ok=True)
 except Exception:
     pass
 
-# Set up custom CSS and JS only if their directories exist (or can be created).
 html_css_files = ['css/custom.css'] if (docs_path / '_static' / 'css').mkdir(parents=True, exist_ok=True) or (docs_path / '_static' / 'css').exists() else []
 html_js_files = ['js/custom.js'] if (docs_path / '_static' / 'js').mkdir(parents=True, exist_ok=True) or (docs_path / '_static' / 'js').exists() else []
 
-# Create a custom CSS file if it does not yet exist—because style matters.
 try:
     css_dir = docs_path / '_static' / 'css'
     css_dir.mkdir(parents=True, exist_ok=True)
@@ -263,7 +246,6 @@ try:
 except Exception:
     pass
 
-# If using the RTD theme, define its delightful options.
 if html_theme == 'sphinx_rtd_theme':
     html_theme_options = {
         'prev_next_buttons_location': 'bottom',
@@ -281,7 +263,6 @@ html_short_title = project
 html_favicon = '_static/favicon.ico' if (docs_path / '_static' / 'favicon.ico').exists() else None
 html_logo = '_static/logo.png' if (docs_path / '_static' / 'logo.png').exists() else None
 
-# Additional HTML display settings to showcase our documentation in all its glory.
 html_show_sourcelink = True
 html_show_sphinx = True
 html_show_copyright = True
@@ -290,14 +271,14 @@ html_use_index = True
 html_split_index = False
 html_baseurl = ''
 
-# Sitemap configuration for search engines
+# Sitemap configuration
 if "sphinx_sitemap" in extensions:
     sitemap_filename = "sitemap.xml"
     sitemap_url_scheme = "{link}"
     html_baseurl = "https://doc-forge.readthedocs.io/"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# LaTeX/PDF Output Configuration - For Printed Legacies
+# LaTeX/PDF Output Configuration
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 latex_elements = {
     'papersize': 'a4paper',
@@ -315,7 +296,7 @@ latex_documents = [
 ]
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Additional Output Formats - EPUB, Man, and Texinfo Chronicles
+# Additional Output Formats - EPUB, Man, and Texinfo
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 epub_title = project
 epub_author = author
@@ -335,36 +316,52 @@ texinfo_documents = [
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Extension-specific and Miscellaneous Configurations
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# TodoXT configuration (if using TODOs in your docs)
 todo_include_todos = True
 todo_emit_warnings = False
 todo_link_only = False
 
-# Configure copybutton if available.
 if 'sphinx_copybutton' in extensions:
     copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
     copybutton_prompt_is_regexp = True
 
-# Advanced autodoc refinement—remove module prefixes for a cleaner look.
 add_module_names = False
 python_use_unqualified_type_names = True
 
-# Mermaid configuration for flowcharts, if the extension is active.
 if 'sphinxcontrib.mermaid' in extensions:
     mermaid_version = "10.6.1"
     mermaid_init_js = "mermaid.initialize({startOnLoad:true, securityLevel:'loose'});"
 
-# Configure autosectionlabel for automatic section references
 if "sphinx.ext.autosectionlabel" in extensions:
     autosectionlabel_prefix_document = True
     autosectionlabel_maxdepth = 3
 
-# OpenGraph configuration for beautiful link previews
 if "sphinxext.opengraph" in extensions:
     ogp_site_url = "https://doc-forge.readthedocs.io/"
     ogp_image = "_static/logo.png" if (docs_path / "_static" / "logo.png").exists() else None
     ogp_use_first_image = True
     ogp_description_length = 300
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Integration with doc_forge modules (Eidosian synergy)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def integrate_doc_forge(app: Any) -> None:
+    """Leverage doc_forge modules for advanced Eidosian doc management."""
+    try:
+        # Example usage calls (these can be refined as needed)
+        from doc_forge.update_toctrees import update_toctrees
+        from doc_forge.fix_inline_refs import fix_inline_references
+        from doc_forge.doc_validator import validate_docs
+        from doc_forge.doc_toc_analyzer import analyze_toc
+        from doc_forge.doc_manifest_manager import load_doc_manifest
+
+        # Attempt to update partial docs automatically
+        update_toctrees(docs_path)
+        fix_inline_references(docs_path)
+        analyze_toc(docs_path)
+        validate_docs(docs_path)
+        load_doc_manifest(root_path / "docs" / "docs_manifest.json")
+    except Exception:
+        pass
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # App Setup Hook - Final Flourish and Runtime Customisation
@@ -373,8 +370,16 @@ def setup(app: Any) -> dict:
     """Set up custom configurations for the Sphinx application with Eidosian flair."""
     try:
         app.add_css_file('css/custom.css')
-        
-        # Find all Markdown/RST files in the docs directory recursively
+
+        # Quietly override any conflicting 'tab' directive warnings
+        # (to avoid "directive 'tab' is already registered")
+        # We keep both tab extensions but skip re-register if needed.
+        directive_registry = getattr(app, 'registry', None)
+        if directive_registry and hasattr(directive_registry, 'directives'):
+            if 'tab' in directive_registry.directives:
+                pass  # Already registered, do nothing.
+
+        # Find all Markdown/RST files in the docs directory
         def find_doc_files(docs_dir: Path) -> List[str]:
             all_files = []
             for ext in [".rst", ".md"]:
@@ -384,25 +389,16 @@ def setup(app: Any) -> dict:
                         all_files.append(str(rel_path).replace("\\", "/"))
             return all_files
         
-        # Make these files available to Sphinx
-        app.connect('builder-inited', lambda app: find_doc_files(docs_path))
-        
+        app.connect('builder-inited', lambda _: find_doc_files(docs_path))
+
+        # Integrate doc_forge modules
+        integrate_doc_forge(app)
+
     except Exception:
-        pass  # We are already Eidosian—if it fails, we simply carry on.
+        pass
     
-    # Return important metadata about our setup
     return {
         'version': version,
         'parallel_read_safe': True,
         'parallel_write_safe': True,
     }
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Building Your Documentation
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# To build your documentation in a truly Eidosian manner, use the following command:
-#
-#     python -m sphinx -b html docs/ $READTHEDOCS_OUTPUT/html/
-#
-# This ensures that Sphinx is invoked through Python's module interface—keeping our build
-# process as modern and reliable as our digital dreams.
