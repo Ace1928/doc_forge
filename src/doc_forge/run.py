@@ -211,13 +211,23 @@ def cmd_setup(args: argparse.Namespace) -> int:
     
     # Create necessary directory structure
     logger.info("📂 Creating directory structure")
-    code, out, err = run_command(["chmod", "+x", str(SCRIPTS_DIR / "create_missing_files.sh")])
-    if code == 0:
-        code, out, err = run_command([str(SCRIPTS_DIR / "create_missing_files.sh")])
-        
-    if code != 0:
-        logger.error(f"❌ Failed to create directory structure: {err}")
-        return code
+    
+    # Check if the script exists before trying to run it
+    script_path = SCRIPTS_DIR / "create_missing_files.sh"
+    if script_path.exists():
+        code, out, err = run_command(["chmod", "+x", str(script_path)])
+        if code == 0:
+            code, out, err = run_command([str(script_path)])
+            
+        if code != 0:
+            logger.warning(f"⚠️ Script execution failed: {err}")
+            # Fall back to Python-based directory creation
+            logger.info("📁 Falling back to Python-based directory creation")
+            create_directory_structure()
+    else:
+        # If script doesn't exist, create the directories directly
+        logger.info("📁 Using built-in directory creation (script not found)")
+        create_directory_structure()
     
     # Create build directory
     BUILD_DIR.mkdir(exist_ok=True, parents=True)
@@ -225,6 +235,72 @@ def cmd_setup(args: argparse.Namespace) -> int:
     
     logger.info("✅ Documentation environment setup complete")
     return 0
+
+def create_directory_structure() -> None:
+    """
+    Create the necessary directory structure for documentation.
+    This is a fallback for when the shell script isn't available.
+    """
+    # Create all required directories
+    dirs_to_create = [
+        DOCS_DIR / "_build" / "html",
+        DOCS_DIR / "_static" / "css",
+        DOCS_DIR / "_static" / "js",
+        DOCS_DIR / "_static" / "img",
+        DOCS_DIR / "_templates",
+        DOCS_DIR / "user_docs",
+        DOCS_DIR / "auto_docs",
+        DOCS_DIR / "api_docs",
+        DOCS_DIR / "assets",
+    ]
+    
+    for directory in dirs_to_create:
+        directory.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"📁 Created directory: {directory}")
+    
+    # Create minimal CSS file
+    css_file = DOCS_DIR / "_static" / "css" / "custom.css"
+    if not css_file.exists():
+        with open(css_file, "w", encoding="utf-8") as f:
+            f.write("""/* Custom CSS for documentation */
+:root {
+    --font-size-base: 16px;
+    --line-height-base: 1.5;
+}
+
+.wy-nav-content {
+    max-width: 900px;
+}
+
+.highlight {
+    border-radius: 4px;
+}
+
+/* Dark mode support for code blocks */
+@media (prefers-color-scheme: dark) {
+    .highlight {
+        background-color: #2d2d2d;
+    }
+}
+""")
+    
+    # Create minimal JS file
+    js_file = DOCS_DIR / "_static" / "js" / "custom.js"
+    if not js_file.exists():
+        with open(js_file, "w", encoding="utf-8") as f:
+            f.write("""/* Custom JavaScript for documentation */
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Doc Forge documentation loaded');
+});
+""")
+
+    # Create placeholder READMEs
+    for dir_name in ["user_docs", "auto_docs", "api_docs", "assets"]:
+        readme_file = DOCS_DIR / dir_name / "README.md"
+        if not readme_file.exists():
+            with open(readme_file, "w", encoding="utf-8") as f:
+                f.write(f"# {dir_name.replace('_', ' ').title()}\n\n")
+                f.write("This directory contains documentation files.\n")
 
 def cmd_fix(args: argparse.Namespace) -> int:
     """

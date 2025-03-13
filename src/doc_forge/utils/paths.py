@@ -155,6 +155,18 @@ def ensure_dir(path: Union[str, Path]) -> Path:
     path_obj.mkdir(parents=True, exist_ok=True)
     return path_obj
 
+def ensure_scripts_dir() -> Path:
+    """
+    Ensure the scripts directory exists with perfect precision.
+    
+    Returns:
+        Path to the scripts directory
+    """
+    repo_root = get_repo_root()
+    scripts_dir = repo_root / "scripts"
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    return scripts_dir
+
 # Initialize with debug info
 logger.debug(f"Module {__name__} loaded")
 logger.debug(f"Current working directory: {Path.cwd()}")
