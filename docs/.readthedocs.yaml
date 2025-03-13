@@ -42,6 +42,8 @@ build:
     install:
       - echo "Installing Python dependencies..."
       - pip install --upgrade pip
+      - pip install -r requirements.txt
+      - pip install -r docs/requirements.txt
     post_install:
       - echo "Dependencies installed successfully."
     build:
