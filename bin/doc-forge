@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+# 🌀 Eidosian Documentation System - Direct Command Interface
+
+"""
+Doc Forge - Direct Command Line Interface
+
+This script serves as a standalone executable for the Doc Forge system,
+allowing users to run it directly as 'doc-forge' when properly installed
+or symlinked to their PATH. It follows Eidosian principles of minimal
+friction and universal access.
+"""
+
+import os
+import sys
+
+# Add package root to path to ensure imports work correctly
+package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, package_root)
+
+try:
+    # Try to import from the installed package first
+    from doc_forge import main
+except ImportError:
+    # Fall back to direct import if package isn't installed
+    sys.path.insert(0, os.path.join(package_root, "src"))
+    from doc_forge import main
+
+if __name__ == "__main__":
+    sys.exit(main())

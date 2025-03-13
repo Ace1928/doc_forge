@@ -14,4 +14,14 @@ from .doc_validator import validate_docs
 from .doc_toc_analyzer import analyze_toc
 from .doc_manifest_manager import load_doc_manifest
 
+# CLI functions for direct access
+try:
+    from .run import main as run_cli
+except ImportError:
+    from .doc_forge import main as run_cli
+
 __version__ = "1.0.0"
+
+def main():
+    """Command-line entry point for direct script execution."""
+    return run_cli()
