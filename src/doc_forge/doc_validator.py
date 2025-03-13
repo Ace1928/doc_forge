@@ -646,6 +646,52 @@ class DocValidator:
         return discrepancies
 
 
+def validate_docs(repo_path: Union[str, Path] = None, rules: List[str] = None) -> List[DocDiscrepancy]:
+    """
+    Validate documentation against source code with Eidosian precision.
+    
+    This function performs comprehensive validation of documentation
+    quality, accuracy, and freshness. It serves as the universal interface
+    to the validation system.
+    
+    Args:
+        repo_path: Path to the repository root directory (auto-detected if None)
+        rules: List of validation rules to apply (defaults to all rules)
+        
+    Returns:
+        List of documentation discrepancies found
+    """
+    # Auto-detect repository root if not provided
+    if repo_path is None:
+        # Try common locations
+        possible_paths = [
+            Path("."),
+            Path(".."),
+            Path(__file__).resolve().parent.parent.parent
+        ]
+        
+        for path in possible_paths:
+            if (path / ".git").exists() or (path / "docs").exists():
+                repo_path = path
+                break
+                
+        if repo_path is None:
+            logger.error("❌ Repository path not specified and couldn't be auto-detected")
+            return []
+    
+    repo_path = Path(repo_path)
+    
+    logger.info(f"🔍 Starting documentation validation for {repo_path}")
+    
+    # Create validator and run validation
+    validator = DocValidator(repo_path)
+    discrepancies = validator.validate_and_update_manifest()
+    
+    # Report results
+    logger.info(f"📊 Validation complete. Found {len(discrepancies)} discrepancies")
+    return discrepancies
+
+
 def main() -> int:
     """Command-line interface for documentation validation."""
     import argparse

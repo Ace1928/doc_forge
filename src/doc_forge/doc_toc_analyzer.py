@@ -21,7 +21,7 @@ import json
 import logging
 import argparse
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional, Any, DefaultDict
+from typing import Dict, List, Set, Tuple, Optional, Any, DefaultDict, Union
 from collections import defaultdict, Counter
 
 # 📊 Self-Aware Logging - Perfect understanding through observation
@@ -267,6 +267,68 @@ class TocAnalyzer:
         for issue in self.structural_issues:
             print(f"- {issue['type']}: {issue.get('entry') or issue.get('doc_id')}")
             
+def analyze_toc(docs_dir: Union[str, Path] = None, generate_report: bool = False) -> Dict[str, Any]:
+    """
+    Analyze TOC structure and identify issues with Eidosian precision.
+    
+    This function serves as the universal interface to the TOC analysis system,
+    identifying structural issues in documentation organization.
+    
+    Args:
+        docs_dir: Path to the documentation directory (auto-detected if None)
+        generate_report: Whether to generate a detailed analysis report
+        
+    Returns:
+        Dictionary with analysis results
+    """
+    # Auto-detect docs directory if not provided
+    if docs_dir is None:
+        # Try common locations
+        possible_dirs = [
+            Path("docs"),
+            Path("../docs"),
+            Path(__file__).resolve().parent.parent.parent / "docs"
+        ]
+        
+        for path in possible_dirs:
+            if path.is_dir():
+                docs_dir = path
+                break
+                
+        if docs_dir is None:
+            logger.error("❌ Documentation directory not specified and couldn't be auto-detected")
+            return {"error": "Documentation directory not found"}
+    
+    docs_dir = Path(docs_dir)
+    
+    if not docs_dir.is_dir():
+        logger.error(f"❌ Not a valid directory: {docs_dir}")
+        return {"error": f"Not a valid directory: {docs_dir}"}
+    
+    logger.info(f"🔍 Analyzing TOC structure in {docs_dir}")
+    
+    # Create analyzer and perform analysis
+    analyzer = TocAnalyzer(docs_dir)
+    
+    # Prepare results
+    results = {
+        "main_toc_entries": len(analyzer.main_toc),
+        "orphaned_documents": analyzer.orphaned_docs,
+        "structural_issues": [issue["type"] for issue in analyzer.structural_issues],
+        "issue_count": len(analyzer.structural_issues)
+    }
+    
+    # Generate detailed report if requested
+    if generate_report:
+        results["detailed_report"] = {
+            "toc_entries_by_file": {k: len(v) for k, v in analyzer.entries_by_file.items()},
+            "main_toc_structure": [{"title": e.title, "target": e.target} for e in analyzer.main_toc],
+            "issue_details": analyzer.structural_issues
+        }
+    
+    logger.info(f"✅ TOC analysis complete. Found {results['issue_count']} issues")
+    return results
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze the TOC structure of documentation.")
     parser.add_argument("docs_dir", type=Path, help="Root directory of the documentation")

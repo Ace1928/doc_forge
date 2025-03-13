@@ -517,6 +517,53 @@ class DocManifestManager:
         # Save the manifest
         self.save_manifest()
 
+def load_doc_manifest(repo_path: Union[str, Path] = None) -> Dict[str, Any]:
+    """
+    Load and synchronize the documentation manifest with Eidosian precision.
+    
+    This function serves as the universal interface to the manifest system,
+    ensuring the manifest is synchronized with the current documentation state.
+    
+    Args:
+        repo_path: Path to the repository root (auto-detected if None)
+        
+    Returns:
+        Dictionary with the current manifest data
+    """
+    # Auto-detect repository root if not provided
+    if repo_path is None:
+        # Try common locations
+        possible_paths = [
+            Path("."),
+            Path(".."),
+            Path(__file__).resolve().parent.parent.parent
+        ]
+        
+        for path in possible_paths:
+            if (path / ".git").exists() or (path / "docs").exists():
+                repo_path = path
+                break
+                
+        if repo_path is None:
+            logger.error("❌ Repository path not specified and couldn't be auto-detected")
+            return {"error": "Repository path not found"}
+    
+    repo_path = Path(repo_path)
+    
+    logger.info(f"📄 Loading documentation manifest from {repo_path}")
+    
+    # Create manifest manager
+    manager = DocManifestManager(repo_path)
+    
+    # Synchronize manifest with filesystem to ensure it's up-to-date
+    manager.sync_manifest_with_filesystem()
+    
+    # Get the current manifest data
+    manifest = manager.get_manifest_data()
+    
+    logger.info("✅ Documentation manifest loaded and synchronized")
+    return manifest
+
 # Command-line execution
 if __name__ == "__main__":
     import argparse

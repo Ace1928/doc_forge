@@ -287,6 +287,65 @@ class TocTreeManager:
         except Exception as e:
             logger.error(f"❌ Failed to update structure in manifest: {e}")
 
+def update_toctrees(docs_dir: str = None, fix_orphans: bool = True, sync_manifest: bool = True) -> int:
+    """
+    Universal TOC Tree Update Function - Single interface for TOC tree management.
+    
+    Updates the table of contents structure for documentation, ensuring proper 
+    organization of documents and fixing orphaned files.
+    
+    Args:
+        docs_dir: Path to the documentation directory (defaults to 'docs')
+        fix_orphans: Whether to add orphan directives to standalone files
+        sync_manifest: Whether to synchronize with the manifest system
+        
+    Returns:
+        Count of updated files (0 if no changes made)
+    """
+    # If no docs_dir provided, try to determine it
+    if docs_dir is None:
+        # Try common locations
+        possible_dirs = [
+            Path("docs"),
+            Path("../docs"),
+            Path(__file__).parent.parent.parent / "docs"
+        ]
+        for path in possible_dirs:
+            if path.is_dir():
+                docs_dir = path
+                break
+        
+        if docs_dir is None:
+            logger.error("❌ Documentation directory not specified and couldn't be found")
+            return 0
+    
+    # Convert to Path if string was provided
+    docs_dir = Path(docs_dir)
+    
+    if not docs_dir.is_dir():
+        logger.error(f"❌ Not a valid directory: {docs_dir}")
+        return 0
+        
+    logger.info(f"🌲 TOCTree Manager initializing for {docs_dir}")
+    manager = TocTreeManager(docs_dir)
+    manager.analyze_toctrees()
+    manager.fix_toctrees()
+    
+    updated_count = 0
+    
+    # Fix orphans if requested
+    if fix_orphans:
+        orphan_count = manager.add_orphan_directives()
+        updated_count += orphan_count
+        
+    # Update manifest if requested
+    if sync_manifest:
+        manager.sync_with_manifest()
+        manager.update_manifest_doc_structure()
+    
+    logger.info(f"✅ Fixed TOC trees and processed {updated_count} files")
+    return updated_count
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <docs_dir>")
