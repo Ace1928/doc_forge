@@ -37,8 +37,8 @@ build:
     pre_create_environment:
       - echo "Running essential doc_forge modules.."
       - pip install -e .  # Install the package itself first
-      - python -m doc_forge.update_toctrees
-      - python -m doc_forge.fix_inline_refs
+      - python -c "import os, sys; from pathlib import Path; docs_path = Path(os.getcwd()) / 'docs'; from doc_forge.update_toctrees import update_toctrees; update_toctrees(docs_path)"
+      - python -c "import os, sys; from pathlib import Path; docs_path = Path(os.getcwd()) / 'docs'; from doc_forge.fix_inline_refs import fix_inline_references; fix_inline_references(docs_path)"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🐍 Python environment - Precision as style, flow like a river

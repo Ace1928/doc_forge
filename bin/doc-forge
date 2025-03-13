@@ -12,18 +12,49 @@ friction and universal access.
 
 import os
 import sys
+from pathlib import Path
 
-# Add package root to path to ensure imports work correctly
-package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, package_root)
+# Robust path resolution to handle any execution environment
+def find_package_root() -> Path:
+    """Find the doc_forge package root with Eidosian precision."""
+    # Start with the script directory
+    script_dir = Path(__file__).resolve().parent
+    
+    # First possibility: script is in a bin directory next to src
+    if (script_dir.parent / "src" / "doc_forge").is_dir():
+        return script_dir.parent
+        
+    # Second possibility: script is in PATH, use working directory
+    if (Path.cwd() / "src" / "doc_forge").is_dir():
+        return Path.cwd()
+        
+    # Third possibility: script is in a bin or scripts dir in the repo
+    for parent in script_dir.parents:
+        if (parent / "src" / "doc_forge").is_dir():
+            return parent
+            
+    # Last resort: just return script's parent and hope for the best
+    return script_dir.parent
 
+# Find package root and add to path
+package_root = find_package_root()
+sys.path.insert(0, str(package_root))
+
+# Try different import strategies
 try:
-    # Try to import from the installed package first
-    from doc_forge import main
+    # First try importing from installed package
+    import doc_forge
+    main = doc_forge.main
 except ImportError:
-    # Fall back to direct import if package isn't installed
-    sys.path.insert(0, os.path.join(package_root, "src"))
-    from doc_forge import main
+    try:
+        # Then try importing from source
+        sys.path.insert(0, str(package_root / "src"))
+        import doc_forge
+        main = doc_forge.main
+    except ImportError:
+        # Last resort: direct import from expected location
+        sys.path.insert(0, str(package_root / "src" / "doc_forge"))
+        from doc_forge import main
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -1,7 +1,7 @@
 # 🌀 Pyproject with Eidosian harmony – universal and adaptive! 🌍
 
 [build-system]
-requires = ["setuptools>=61.0.0", "wheel>=0.37.0"]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -9,17 +9,29 @@ build-backend = "setuptools.build_meta"
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [project]
 name = "doc-forge"
-version = "0.1.0"  # AUTO-MANAGED
-description = "Eidosian Document Forge (Doc Forge) repository"
+version = "1.0.0"
+description = "Universal Documentation Management System"
 readme = "README.md"
 authors = [
-  {name = "Lloyd Handyside", email = "ace1928@gmail.com"},
-  {name = "Eidos", email = "syntheticeidos@gmail.com"},
+    {name = "Lloyd Handyside", email = "lloyd@example.com"},
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.8"
 license = {text = "MIT"}
 
-dependencies = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+]
+
+dependencies = [
+    "sphinx>=4.5.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "sphinx-copybutton>=0.5.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/Ace1928/doc_forge"
@@ -53,6 +65,16 @@ docs = [
   "sphinx-autobuild>=2024.10.3",
   "sphinx-design>=0.6.1",
 ]
+
+[project.scripts]
+doc-forge = "doc_forge:main"
+
+[tool.setuptools]
+packages = ["doc_forge"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+doc_forge = ["py.typed"]
 
 [tool.black]
 line-length = 88

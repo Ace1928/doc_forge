@@ -30,13 +30,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger("doc_forge.runner")
 
+# Replace path configuration with:
+from .utils.paths import get_repo_root, get_docs_dir, resolve_path, ensure_dir
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🛠️ Path Configuration - The foundation of structure
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REPO_ROOT = Path(__file__).resolve().parent
-DOCS_DIR = REPO_ROOT / "docs"
-BUILD_DIR = DOCS_DIR / "build"
-SCRIPTS_DIR = REPO_ROOT
+# Get essential paths using our dedicated path utilities
+REPO_ROOT = get_repo_root()
+DOCS_DIR = get_docs_dir()
+BUILD_DIR = DOCS_DIR / "_build"
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+
+# Debug log to ensure paths are correct
+logger.debug(f"🔍 REPO_ROOT set to: {REPO_ROOT}")
+logger.debug(f"🔍 DOCS_DIR set to: {DOCS_DIR}")
+logger.debug(f"🔍 BUILD_DIR set to: {BUILD_DIR}")
+logger.debug(f"🔍 SCRIPTS_DIR set to: {SCRIPTS_DIR}")
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # ⚡ Command Execution - Zero friction operation
@@ -170,9 +180,31 @@ def cmd_setup(args: argparse.Namespace) -> int:
     """
     logger.info("🏗️ Setting up documentation environment")
     
-    # Install Python dependencies
+    # Install Python dependencies with path safety
+    requirements_path = DOCS_DIR / "requirements.txt"
+    
+    if not requirements_path.exists():
+        # Try alternative locations
+        alt_paths = [
+            REPO_ROOT / "requirements.txt",  # Root-level requirements
+            REPO_ROOT / "requirements" / "docs.txt",  # Dedicated docs requirements
+        ]
+        
+        for path in alt_paths:
+            if path.exists():
+                requirements_path = path
+                logger.info(f"📄 Using requirements from: {requirements_path}")
+                break
+                
+    if not requirements_path.exists():
+        # Create minimal requirements.txt if none exists
+        logger.warning("⚠️ No requirements file found. Creating minimal one.")
+        ensure_dir(requirements_path.parent)
+        with open(requirements_path, "w") as f:
+            f.write("# Documentation dependencies\nsphinx>=4.0.0\nsphinx-rtd-theme>=1.0.0\n")
+    
     logger.info("📦 Installing Python dependencies")
-    code, out, err = run_command([sys.executable, "-m", "pip", "install", "-r", str(DOCS_DIR / "requirements.txt")])
+    code, out, err = run_command([sys.executable, "-m", "pip", "install", "-r", str(requirements_path)])
     if code != 0:
         logger.error(f"❌ Failed to install dependencies: {err}")
         return code
