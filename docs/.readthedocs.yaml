@@ -30,7 +30,6 @@ build:
     - hugo         # Static site generator
     - nodejs       # JavaScript runtime
     - npm          # Node package manager
-    - libclang     # C/C++ parsing library
   
   # Build orchestration - the rhythm of creation
   jobs:
