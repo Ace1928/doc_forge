@@ -8,9 +8,9 @@ build-backend = "setuptools.build_meta"
 # 📦 Project Core - Single Source of Truth
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [project]
-name = "doc_forge_repo"
+name = "doc-forge"
 version = "0.1.0"  # AUTO-MANAGED
-description = "Eidosian doc_forge_repo repository"
+description = "Eidosian Document Forge (Doc Forge) repository"
 readme = "README.md"
 authors = [
   {name = "Lloyd Handyside", email = "ace1928@gmail.com"},
@@ -22,12 +22,12 @@ license = {text = "MIT"}
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/Ace1928/doc_forge_repo"
-Documentation = "https://doc_forge_repo.readthedocs.io"
+Homepage = "https://github.com/Ace1928/doc_forge"
+Documentation = "https://doc_forge.readthedocs.io"
 Organization = "https://neuroforge.io"
-"Bug Tracker" = "https://github.com/Ace1928/doc_forge_repo/issues"
-"Source Code" = "https://github.com/Ace1928/doc_forge_repo"
-Changelog = "https://github.com/Ace1928/doc_forge_repo/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/Ace1928/doc_forge/issues"
+"Source Code" = "https://github.com/Ace1928/doc_forge"
+Changelog = "https://github.com/Ace1928/doc_forge/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
