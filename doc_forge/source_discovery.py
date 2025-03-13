@@ -272,13 +272,18 @@ class DocumentationDiscovery:
         for pattern in patterns:
             for file_path in path.glob(f"**/{pattern}"):
                 try:
+                    # Skip if in excluded directories
+                    if any(p.startswith('_') for p in file_path.parts):
+                        continue
+                    
                     # Read file content
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     
-                    # Create metadata object
-                    metadata = DocumentMetadata(path=file_path, category=category)
+                    # Create document metadata
+                    metadata = DocumentMetadata(path=file_path)
                     metadata.extract_from_content(content)
+                    metadata.category = category
                     
                     documents.append(metadata)
                 except Exception as e:
@@ -301,7 +306,75 @@ class DocumentationDiscovery:
                 # Add to orphaned documents list for later processing
                 rel_path = file_path.relative_to(self.docs_dir)
                 self.orphaned_documents.append(file_path)
-    
+
+    def integrate_with_manifest(self) -> None:
+        """
+        Integrate discovery results with the manifest system.
+        Creates a connection between discovery and the manifest for Living Docs.
+        """
+        manifest_path = self.docs_dir / "docs_manifest.json"
+        if not manifest_path.exists():
+            logger.warning("Manifest file not found, creating new one")
+            manifest = {
+                "version": "1.0.0",
+                "project_name": "Doc Forge",
+                "documentation_categories": {},
+                "metadata": {
+                    "last_updated": datetime.now().isoformat(),
+                    "validation_status": {
+                        "orphaned_docs": [str(p.relative_to(self.docs_dir)) for p in self.orphaned_documents]
+                    },
+                    "doc_metrics": {
+                        "total_files": len(self.tracked_documents) + len(self.orphaned_documents),
+                        "manual_files": len([d for d in self.tracked_documents if not d.endswith('.py')]),
+                        "auto_files": len([d for d in self.tracked_documents if d.endswith('.py')]),
+                        "coverage_percentage": 0
+                    }
+                },
+                "living_docs": {
+                    "enabled": True,
+                    "validation_frequency": "daily",
+                    "update_policy": "suggest"
+                }
+            }
+        else:
+            # Load existing manifest
+            try:
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    manifest = json.load(f)
+                    
+                # Update the manifest with discovery results
+                if "metadata" not in manifest:
+                    manifest["metadata"] = {}
+                
+                if "validation_status" not in manifest["metadata"]:
+                    manifest["metadata"]["validation_status"] = {}
+                
+                manifest["metadata"]["validation_status"]["orphaned_docs"] = [
+                    str(p.relative_to(self.docs_dir)) for p in self.orphaned_documents
+                ]
+                
+                if "doc_metrics" not in manifest["metadata"]:
+                    manifest["metadata"]["doc_metrics"] = {}
+                
+                manifest["metadata"]["doc_metrics"].update({
+                    "total_files": len(self.tracked_documents) + len(self.orphaned_documents),
+                    "manual_files": len([d for d in self.tracked_documents if not d.endswith('.py')]),
+                    "auto_files": len([d for d in self.tracked_documents if d.endswith('.py')]),
+                })
+                
+            except Exception as e:
+                logger.error(f"Error updating manifest: {e}")
+                return
+        
+        # Save the updated manifest
+        try:
+            with open(manifest_path, 'w', encoding='utf-8') as f:
+                json.dump(manifest, f, indent=4)
+            logger.info(f"Updated manifest at {manifest_path}")
+        except Exception as e:
+            logger.error(f"Error saving manifest: {e}")
+
     def generate_toc_structure(self, documents: Dict[str, List[DocumentMetadata]]) -> Dict:
         """
         Generate a Table of Contents structure from the discovered documents.

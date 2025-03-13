@@ -253,6 +253,40 @@ class TocTreeManager:
         except Exception as e:
             logger.error(f"❌ Failed to sync with manifest: {e}")
 
+    def update_manifest_doc_structure(self) -> None:
+        """
+        Update the manifest with the current TOC structure information.
+        This connects TOC management with the Living Docs concept.
+        """
+        if not self.manifest:
+            logger.warning("⚠️ No manifest data available for structure update")
+            return
+            
+        try:
+            # Create structure representation for the manifest
+            toc_structure = {}
+            
+            # Create a mapping of TOC sections
+            for toc_name, docs in self.toctrees.items():
+                toc_structure[toc_name] = {
+                    "title": toc_name,
+                    "docs": docs
+                }
+            
+            # Update the manifest
+            if "documentation_structure" not in self.manifest:
+                self.manifest["documentation_structure"] = {}
+                
+            self.manifest["documentation_structure"]["toc_trees"] = toc_structure
+            
+            # Save the updated manifest
+            with open(self.manifest_path, "w", encoding="utf-8") as f:
+                json.dump(self.manifest, f, indent=4)
+                
+            logger.info(f"✅ Updated documentation structure in manifest")
+        except Exception as e:
+            logger.error(f"❌ Failed to update structure in manifest: {e}")
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <docs_dir>")
@@ -269,4 +303,5 @@ if __name__ == "__main__":
     manager.fix_toctrees()
     orphan_count = manager.add_orphan_directives()
     manager.sync_with_manifest()
+    manager.update_manifest_doc_structure()  # Add structure information to manifest
     print(f"✅ Fixed TOC trees and added {orphan_count} orphan directives")

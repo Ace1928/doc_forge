@@ -585,6 +585,66 @@ class DocValidator:
         self.discrepancies.append(discrepancy)
         logger.debug(f"📝 Found discrepancy: {discrepancy}")
 
+    def sync_with_manifest(self) -> None:
+        """
+        Synchronize validation results with the documentation manifest.
+        This is the key connection point for the Living Docs concept.
+        """
+        try:
+            # Load existing manifest
+            manifest_path = self.docs_dir / "docs_manifest.json"
+            if not manifest_path.exists():
+                logger.warning(f"Manifest file not found at {manifest_path}")
+                return
+                
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                manifest = json.load(f)
+                
+            # Update validation status
+            if "metadata" not in manifest:
+                manifest["metadata"] = {}
+                
+            if "validation_status" not in manifest["metadata"]:
+                manifest["metadata"]["validation_status"] = {}
+                
+            # Add discrepancy information
+            outdated_docs = []
+            missing_docs = []
+            
+            for discrepancy in self.discrepancies:
+                doc_path = str(discrepancy.doc_path.relative_to(self.docs_dir))
+                
+                if discrepancy.discrepancy_type == "outdated_docs":
+                    if doc_path not in outdated_docs:
+                        outdated_docs.append(doc_path)
+                elif discrepancy.discrepancy_type in ["signature_missing", "examples_missing"]:
+                    if doc_path not in missing_docs:
+                        missing_docs.append(doc_path)
+            
+            manifest["metadata"]["validation_status"]["outdated_docs"] = outdated_docs
+            manifest["metadata"]["validation_status"]["missing_docs"] = missing_docs
+            
+            # Save updated manifest
+            with open(manifest_path, 'w', encoding='utf-8') as f:
+                json.dump(manifest, f, indent=4)
+                
+            logger.info(f"✅ Updated manifest with validation results")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to sync with manifest: {e}")
+
+    def validate_and_update_manifest(self) -> List[DocDiscrepancy]:
+        """
+        Validate documentation and update the manifest in one operation.
+        Provides a streamlined interface for the Living Docs workflow.
+        
+        Returns:
+            List of documentation discrepancies
+        """
+        discrepancies = self.validate_all_documentation()
+        self.sync_with_manifest()
+        return discrepancies
+
 
 def main() -> int:
     """Command-line interface for documentation validation."""
