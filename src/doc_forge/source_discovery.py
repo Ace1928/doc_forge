@@ -622,11 +622,66 @@ class DocumentationDiscovery:
 
 def discover_code_structures(root_dir: Path):
     """
-    Recursively scan for Python files and parse their AST for modules,
-    classes, and functions.
-    Returns a list of dicts describing discovered items.
+    Recursively scan for Python files and parse their AST for detailed code structures.
+    
+    Performs comprehensive analysis extracting:
+    - Modules, classes, and functions
+    - Parameters and return types
+    - Docstring information
+    - Code complexity metrics
+    - Relationships between components
+    
+    Args:
+        root_dir: Root directory to scan for Python files
+        
+    Returns:
+        List of dictionaries describing discovered items with detailed metadata
     """
     results = []
+    module_cache = {}
+    
+    # Helper function for complexity calculation
+    def calculate_complexity(node):
+        complexity = 1  # Base complexity
+        # Count branches (if/else statements, loops)
+        branches = sum(1 for n in ast.walk(node) if isinstance(n, (ast.If, ast.For, ast.While)))
+        # Count function calls
+        calls = sum(1 for n in ast.walk(node) if isinstance(n, ast.Call))
+        # Adjust complexity based on these factors
+        return complexity + branches + (calls // 5)
+    
+    # Helper to extract docstring
+    def extract_docstring(node):
+        docstring = ast.get_docstring(node)
+        has_docstring = docstring is not None
+        docstring_summary = docstring.split("\n")[0] if docstring else ""
+        return has_docstring, docstring_summary
+    
+    # Helper to extract parameters and return type
+    def extract_function_signature(node):
+        # Get parameters
+        parameters = []
+        for arg in node.args.args:
+            if arg.arg not in ('self', 'cls'):  # Skip self and cls
+                param = {"name": arg.arg}
+                # Add type annotation if available
+                if arg.annotation:
+                    try:
+                        param["type"] = ast.unparse(arg.annotation)
+                    except (AttributeError, ValueError):
+                        param["type"] = "unknown"
+                parameters.append(param)
+        
+        # Get return type
+        return_type = None
+        if node.returns:
+            try:
+                return_type = ast.unparse(node.returns)
+            except (AttributeError, ValueError):
+                return_type = "unknown"
+        
+        return parameters, return_type
+    
     for dirpath, _, filenames in os.walk(root_dir):
         for fname in filenames:
             if fname.endswith(".py"):
@@ -634,23 +689,122 @@ def discover_code_structures(root_dir: Path):
                 try:
                     with open(filepath, "r", encoding="utf-8") as f:
                         tree = ast.parse(f.read(), filename=str(filepath))
+                    
+                    # Extract module information
+                    module_docstring = ast.get_docstring(tree)
+                    module_name = filepath.stem
+                    module_path = str(filepath.relative_to(root_dir)).replace('\\', '.').replace('/', '.')
+                    if module_path.endswith('.py'):
+                        module_path = module_path[:-3]
+                    
+                    # Cache module info for relationships
+                    module_cache[module_path] = {
+                        "classes": {},
+                        "functions": {},
+                        "imports": []
+                    }
+                    
+                    # Track imports
+                    imports = []
                     for node in ast.walk(tree):
-                        if isinstance(node, ast.ClassDef):
-                            results.append({
-                                "type": "class",
-                                "name": node.name,
-                                "file": str(filepath)
-                            })
-                        elif isinstance(node, ast.FunctionDef):
+                        if isinstance(node, ast.Import):
+                            for name in node.names:
+                                imports.append(name.name)
+                        elif isinstance(node, ast.ImportFrom):
+                            if node.module:
+                                imports.append(node.module)
+                    
+                    module_cache[module_path]["imports"] = imports
+                    
+                    # Process classes
+                    for node in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
+                        has_docstring, docstring_summary = extract_docstring(node)
+                        
+                        # Get inheritance info
+                        bases = [ast.unparse(base) for base in node.bases]
+                        
+                        # Track methods
+                        methods = []
+                        for method_node in [n for n in ast.walk(node) if isinstance(n, ast.FunctionDef)]:
+                            methods.append(method_node.name)
+                        
+                        # Store in module cache
+                        module_cache[module_path]["classes"][node.name] = {
+                            "methods": methods,
+                            "bases": bases
+                        }
+                        
+                        # Add to results
+                        results.append({
+                            "type": "class",
+                            "name": node.name,
+                            "file": str(filepath),
+                            "module": module_path,
+                            "has_docstring": has_docstring,
+                            "docstring_summary": docstring_summary,
+                            "bases": bases,
+                            "methods": methods,
+                            "complexity": calculate_complexity(node)
+                        })
+                    
+                    # Process functions (not methods)
+                    for node in ast.iter_child_nodes(tree):
+                        if isinstance(node, ast.FunctionDef):
+                            has_docstring, docstring_summary = extract_docstring(node)
+                            parameters, return_type = extract_function_signature(node)
+                            
+                            # Store in module cache
+                            module_cache[module_path]["functions"][node.name] = {
+                                "parameters": parameters,
+                                "return_type": return_type
+                            }
+                            
+                            # Add to results
                             results.append({
                                 "type": "function",
                                 "name": node.name,
-                                "file": str(filepath)
+                                "file": str(filepath),
+                                "module": module_path,
+                                "has_docstring": has_docstring,
+                                "docstring_summary": docstring_summary,
+                                "parameters": parameters,
+                                "return_type": return_type,
+                                "complexity": calculate_complexity(node)
                             })
-                except Exception:
-                    pass
+                            
+                    # Process class methods (separately to establish relationships)
+                    for class_node in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
+                        for node in [n for n in ast.walk(class_node) if isinstance(n, ast.FunctionDef)]:
+                            has_docstring, docstring_summary = extract_docstring(node)
+                            parameters, return_type = extract_function_signature(node)
+                            
+                            # Add to results
+                            results.append({
+                                "type": "method",
+                                "name": node.name,
+                                "file": str(filepath),
+                                "module": module_path,
+                                "class_name": class_node.name,
+                                "has_docstring": has_docstring,
+                                "docstring_summary": docstring_summary,
+                                "parameters": parameters,
+                                "return_type": return_type,
+                                "complexity": calculate_complexity(node)
+                            })
+                
+                except Exception as e:
+                    logger.warning(f"Error analyzing {filepath}: {e}")
+    
+    # Second pass: establish relationships between modules
+    for result in results:
+        if "module" in result:
+            module = result["module"]
+            # Add module relationship information if available
+            if module in module_cache:
+                result["module_imports"] = module_cache[module]["imports"]
+    
     return results
-
+    
 if __name__ == "__main__":
     # Run as a standalone script to test
     repo_root = Path(__file__).resolve().parent.parent
