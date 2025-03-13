@@ -109,3 +109,12 @@ Thumbs.db
 # Exclude sibling repositories
 ../*/
 !../README.md
+.pypirc
+**/.pypirc
+**/*.key
+**/*.pem
+**/*.token
+**/.env
+**/.env.*
+**/credentials.*
+**/secrets.*
