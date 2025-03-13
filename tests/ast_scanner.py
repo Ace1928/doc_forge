@@ -11,6 +11,10 @@ class CodeEntityAnalyzer:
     """
     Advanced code entity analyzer with comprehensive inspection capabilities.
     Discovers and categorizes code structures with Eidosian precision.
+    
+    Like a master cartographer mapping the neural pathways of your codebase,
+    this analyzer reveals the hidden architecture and design patterns that
+    give your software its true character. 🧠✨
     """
     
     def __init__(self, repo_root: Path):
@@ -26,6 +30,9 @@ class CodeEntityAnalyzer:
         """
         Comprehensively analyze the codebase and discover all code structures.
         Return enriched structure information including parameters, return types, etc.
+        
+        Like an archaeologist uncovering ancient wisdom, this method extracts
+        the deeper truths buried in your source code. 🏺🔍
         """
         # First get the basic structures
         raw_items = discover_code_structures(self.src_dir)
@@ -327,50 +334,398 @@ class CodeEntityAnalyzer:
             "covered_items": sum(len(items) for items in by_module.values())
         }
 
+    def visualize_coverage(self, output_path: Optional[Path] = None) -> Path:
+        """
+        Generate a visual representation of test coverage as an HTML report.
+        
+        This creates an interactive sunburst diagram where:
+        - The inner ring represents modules
+        - The middle ring represents classes
+        - The outer ring represents functions/methods
+        - Color indicates test coverage (red=untested, green=tested)
+        
+        Args:
+            output_path: Where to save the HTML report (defaults to tests/coverage_viz.html)
+            
+        Returns:
+            Path to the generated visualization file
+        """
+        if not self.discovered_items:
+            self.discover_all_structures()
+            
+        if not hasattr(self, 'module_structure') or not self.module_structure:
+            self.analyze_tests()
+            
+        # Default path if none provided
+        if output_path is None:
+            output_path = self.tests_dir / "coverage_viz.html"
+            
+        # Prepare data structure for visualization
+        viz_data = {
+            "name": "root",
+            "children": []
+        }
+        
+        # Group by modules
+        for module_name, data in self.module_structure.items():
+            module_node = {
+                "name": module_name,
+                "children": []
+            }
+            
+            # Group by item type (class or function)
+            types = {}
+            for status in ["tested", "untested"]:
+                for item in data[status]:
+                    item_type = item["type"]
+                    if item_type not in types:
+                        types[item_type] = {"tested": [], "untested": []}
+                    types[item_type][status].append(item)
+            
+            # Add classes
+            for item_type, status_data in types.items():
+                type_node = {
+                    "name": item_type,
+                    "children": []
+                }
+                
+                # Add tested items
+                for item in status_data["tested"]:
+                    type_node["children"].append({
+                        "name": item["name"],
+                        "value": item.get("complexity", 1),
+                        "status": "tested"
+                    })
+                
+                # Add untested items
+                for item in status_data["untested"]:
+                    type_node["children"].append({
+                        "name": item["name"],
+                        "value": item.get("complexity", 1),
+                        "status": "untested"
+                    })
+                
+                module_node["children"].append(type_node)
+            
+            viz_data["children"].append(module_node)
+        
+        # Generate HTML with D3.js visualization
+        html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eidosian Test Coverage Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { color: #333; text-align: center; }
+        .stats { display: flex; justify-content: space-around; margin-bottom: 20px; }
+        .stat-box { background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; width: 200px; }
+        .stat-value { font-size: 24px; font-weight: bold; margin: 10px 0; }
+        .tested { color: #4CAF50; }
+        .untested { color: #F44336; }
+        .visualization { display: flex; justify-content: center; }
+        .tooltip { position: absolute; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 3px; font-size: 12px; }
+        path { stroke: #fff; }
+        path:hover { opacity: 0.8; }
+        .tested-item { fill: #4CAF50; }
+        .untested-item { fill: #F44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Eidosian Test Coverage Visualization</h1>
+        <div class="stats">
+            <div class="stat-box">
+                <div>Total Items</div>
+                <div class="stat-value">{total_items}</div>
+            </div>
+            <div class="stat-box">
+                <div>Tested Items</div>
+                <div class="stat-value tested">{tested_items}</div>
+            </div>
+            <div class="stat-box">
+                <div>Untested Items</div>
+                <div class="stat-value untested">{untested_items}</div>
+            </div>
+            <div class="stat-box">
+                <div>Coverage</div>
+                <div class="stat-value">{coverage_percent:.1f}%</div>
+            </div>
+        </div>
+        <div class="visualization">
+            <div id="sunburst"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Visualization data
+        const data = {json_data};
+        
+        // Create sunburst visualization
+        const width = 700;
+        const height = 700;
+        const radius = width / 2;
+        
+        const arc = d3.arc()
+            .startAngle(d => d.x0)
+            .endAngle(d => d.x1)
+            .padAngle(d => Math.min((d.x1 - d.x0) / 2, 0.005))
+            .padRadius(radius / 2)
+            .innerRadius(d => d.y0)
+            .outerRadius(d => d.y1 - 1);
+            
+        const partition = data => d3.partition()
+            .size([2 * Math.PI, radius])
+            (d3.hierarchy(data)
+                .sum(d => d.value || 0)
+                .sort((a, b) => b.value - a.value));
+                
+        const root = partition(data);
+        
+        const svg = d3.select("#sunburst")
+            .append("svg")
+            .attr("viewBox", [-width / 2, -height / 2, width, height])
+            .attr("width", width)
+            .attr("height", height)
+            .style("font", "10px sans-serif");
+            
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+            
+        svg.append("g")
+            .selectAll("path")
+            .data(root.descendants().filter(d => d.depth))
+            .join("path")
+            .attr("fill", d => d.data.status === "tested" ? "#4CAF50" : 
+                              (d.data.status === "untested" ? "#F44336" : 
+                              (d.depth === 1 ? "#2196F3" : "#FFC107")))
+            .attr("class", d => d.data.status ? d.data.status + "-item" : "")
+            .attr("d", arc)
+            .append("title")
+            .text(d => `${d.ancestors().map(d => d.data.name).reverse().join(".")}`);
+            
+        svg.selectAll("path")
+            .on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`${d.ancestors().map(d => d.data.name).reverse().join(".")}`)
+                    .style("left", (event.pageX + 5) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on("mouseout", function(d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
+    </script>
+</body>
+</html>
+""".format(
+            total_items=len(self.discovered_items),
+            tested_items=len(self._analyze_coverage()["tested"]),
+            untested_items=len(self._analyze_coverage()["untested"]),
+            coverage_percent=self._calculate_coverage_percentage(self._analyze_coverage()),
+            json_data=json.dumps(viz_data)
+        )
+        
+        # Write the HTML file
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+            
+        return output_path
+
+    def generate_comprehensive_report(self, output_dir: Optional[Path] = None) -> Dict[str, Path]:
+        """
+        Generate a comprehensive Eidosian test analysis suite with multiple perspectives.
+        
+        This method orchestrates the creation of all available reports:
+        1. TODO document - What needs testing
+        2. Coverage report - Current test status
+        3. Test stubs - Starting points for new tests
+        4. Visual report - Interactive visualization
+        
+        Args:
+            output_dir: Output directory (defaults to tests directory)
+            
+        Returns:
+            Dictionary mapping report types to file paths
+        """
+        if output_dir is None:
+            output_dir = self.tests_dir
+            
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure we have all necessary data
+        if not self.discovered_items:
+            self.discover_all_structures()
+            
+        if not hasattr(self, 'module_structure'):
+            self.analyze_tests()
+            
+        # Generate all reports
+        reports = {}
+        
+        # 1. Generate TODO document
+        todo_path = output_dir / "doc_forge_todo.md"
+        with open(todo_path, "w", encoding="utf-8") as f:
+            f.write("# Doc Forge Comprehensive Test TODO\n\n")
+            f.write("This document outlines all testable code structures and their current test status.\n\n")
+            
+            # Group by module
+            by_module = {}
+            for item in self.discovered_items:
+                module_path = item.get("module_path", "unknown")
+                if module_path not in by_module:
+                    by_module[module_path] = []
+                by_module[module_path].append(item)
+            
+            # Write by module
+            for module, module_items in sorted(by_module.items()):
+                f.write(f"## Module: `{module}`\n\n")
+                
+                # List classes first, then functions, then methods
+                classes = [i for i in module_items if i["type"] == "class"]
+                functions = [i for i in module_items if i["type"] == "function"]
+                methods = [i for i in module_items if i["type"] == "method"]
+                
+                if classes:
+                    f.write("### Classes\n\n")
+                    for item in sorted(classes, key=lambda x: x["name"]):
+                        params = ", ".join(item.get("parameters", []))
+                        has_doc = "✅" if item.get("has_docstring", False) else "❌"
+                        is_tested = "✅" if item in self._analyze_coverage()["tested"] else "❌"
+                        f.write(f"- [{item['type'].title()}] **{item['name']}** ({params}) | Docstring: {has_doc} | Tested: {is_tested} | Complexity: {item.get('complexity', 1)}\n")
+                
+                if functions:
+                    f.write("\n### Functions\n\n")
+                    for item in sorted(functions, key=lambda x: x["name"]):
+                        params = ", ".join(item.get("parameters", []))
+                        has_doc = "✅" if item.get("has_docstring", False) else "❌"
+                        is_tested = "✅" if item in self._analyze_coverage()["tested"] else "❌"
+                        f.write(f"- [{item['type'].title()}] **{item['name']}** ({params}) | Docstring: {has_doc} | Tested: {is_tested} | Complexity: {item.get('complexity', 1)}\n")
+                
+                if methods:
+                    f.write("\n### Methods\n\n")
+                    for item in sorted(methods, key=lambda x: (x.get("class_name", ""), x["name"])):
+                        params = ", ".join(item.get("parameters", []))
+                        has_doc = "✅" if item.get("has_docstring", False) else "❌"
+                        is_tested = "✅" if item in self._analyze_coverage()["tested"] else "❌"
+                        f.write(f"- [{item['type'].title()}] **{item.get('class_name', '')}**.{item['name']} ({params}) | Docstring: {has_doc} | Tested: {is_tested} | Complexity: {item.get('complexity', 1)}\n")
+                        
+                f.write("\n")
+                
+        reports["todo"] = todo_path
+        
+        # 2. Generate coverage report
+        coverage_path = output_dir / "doc_forge_coverage.md"
+        suggestions = self.generate_test_suggestions()
+        with open(coverage_path, "w", encoding="utf-8") as f:
+            f.write("# 🔬 Doc Forge Test Coverage Report\n\n")
+            f.write("*An Eidosian analysis of test coverage patterns*\n\n")
+            
+            # Write summary statistics
+            coverage_pct = self._calculate_coverage_percentage(self._analyze_coverage())
+            f.write(f"## Coverage Summary\n\n")
+            
+            # Add a visual bar for coverage percentage
+            bar_length = 50
+            filled_length = int(coverage_pct / 100 * bar_length)
+            bar = "█" * filled_length + "░" * (bar_length - filled_length)
+            
+            f.write(f"- **Overall Coverage**: {coverage_pct:.1f}% `{bar}` \n")
+            f.write(f"- **Total Items**: {len(self.discovered_items)}\n")
+            f.write(f"- **Tested Items**: {len(self._analyze_coverage()['tested'])} ✅\n")
+            f.write(f"- **Untested Items**: {len(self._analyze_coverage()['untested'])} ❌\n\n")
+            
+            # Write module-level coverage
+            f.write("## Coverage by Module\n\n")
+            for module_name, data in self._analyze_coverage()["by_module"].items():
+                total = len(data["tested"]) + len(data["untested"])
+                if total == 0:
+                    continue
+                    
+                module_pct = (len(data["tested"]) / total) * 100
+                filled_length = int(module_pct / 100 * bar_length)
+                bar = "█" * filled_length + "░" * (bar_length - filled_length)
+                
+                f.write(f"### {module_name}\n\n")
+                f.write(f"- **Coverage**: {module_pct:.1f}% `{bar}`\n")
+                f.write(f"- **Tested**: {len(data['tested'])}\n")
+                f.write(f"- **Untested**: {len(data['untested'])}\n\n")
+            
+            # Write tested items
+            f.write("## Tested Items\n\n")
+            for item in self._analyze_coverage()["tested"]:
+                f.write(f"- **{item['type'].title()}**: `{item['name']}` ({item['module_path']})\n")
+            
+            # Write untested items with priority
+            f.write("\n## Untested Items\n\n")
+            
+            # Group by priority
+            for priority, symbol in [("high", "🔴"), ("medium", "🟠"), ("low", "🟡")]:
+                priority_items = [s for s in suggestions["suggestions"] if s["priority"] == priority]
+                if priority_items:
+                    f.write(f"### {symbol} {priority.title()} Priority\n\n")
+                    for suggestion in priority_items:
+                        item = suggestion["item"]
+                        f.write(f"- **{item['type'].title()}**: `{item['name']}` ({item['module_path']})\n")
+                        f.write(f"  - **Suggestion**: {suggestion['suggested_approach']}\n")
+                        f.write(f"  - **Proposed Test Name**: `{suggestion['test_function_name']}`\n\n")
+                        
+            # Add insights section
+            f.write("## 🧠 Eidosian Insights\n\n")
+            
+            # Calculate statistics
+            total_items = len(self.discovered_items)
+            total_complexity = sum(i.get("complexity", 1) for i in self.discovered_items)
+            avg_complexity = total_complexity / total_items if total_items > 0 else 0
+            tested_items = self._analyze_coverage()["tested"]
+            tested_complexity = sum(i.get("complexity", 1) for i in tested_items)
+            tested_pct = len(tested_items) / total_items * 100 if total_items > 0 else 0
+            complexity_pct = tested_complexity / total_complexity * 100 if total_complexity > 0 else 0
+            
+            # Add insights based on statistics
+            f.write(f"- Average code complexity: **{avg_complexity:.2f}**\n")
+            
+            if complexity_pct < tested_pct:
+                f.write("- 🧩 **Complexity Gap**: While {tested_pct:.1f}% of items are tested, only {complexity_pct:.1f}% of complexity is covered.\n")
+                f.write("  - *Recommendation*: Focus on testing complex functions first to maximize impact.\n\n")
+            else:
+                f.write(f"- ✨ **Effective Testing**: {tested_pct:.1f}% of items are tested, covering {complexity_pct:.1f}% of complexity.\n")
+                f.write("  - *Observation*: Your tests are effectively targeting complex code paths.\n\n")
+            
+            # Add recommendations for next steps
+            f.write("### 🚀 Next Steps\n\n")
+            if suggestions["by_priority"]["high"]:
+                high_priority = suggestions["by_priority"]["high"][0]["item"]
+                f.write(f"1. Create a test for `{high_priority['name']}` in the `{high_priority['module_path']}` module.\n")
+            
+            # Add visualization reference
+            f.write("\n### 📊 Visualization\n\n")
+            f.write("For an interactive visualization of test coverage, open the generated HTML report.\n")
+            
+        reports["coverage"] = coverage_path
+        
+        # 3. Generate test stubs
+        stubs_info = self.generate_test_stubs(output_dir)
+        reports["stubs"] = [Path(p) for p in stubs_info["generated_files"]]
+        
+        # 4. Generate visualization
+        viz_path = self.visualize_coverage(output_dir / "coverage_visualization.html")
+        reports["visualization"] = viz_path
+        
+        return reports
+
 def generate_todo_document():
     """Generate a comprehensive TODO document for all code structures."""
     repo_root = Path(__file__).resolve().parents[1]
     analyzer = CodeEntityAnalyzer(repo_root)
-    items = analyzer.discover_all_structures()
-    
-    todo_path = repo_root / "tests" / "doc_forge_todo.md"
-    with open(todo_path, "w", encoding="utf-8") as f:
-        f.write("# Doc Forge Comprehensive Test TODO\n\n")
-        f.write("This document outlines all testable code structures and their current test status.\n\n")
-        
-        # Group by module
-        by_module = {}
-        for item in items:
-            module_path = item.get("module_path", "unknown")
-            if module_path not in by_module:
-                by_module[module_path] = []
-            by_module[module_path].append(item)
-        
-        # Write by module
-        for module, module_items in sorted(by_module.items()):
-            f.write(f"## Module: `{module}`\n\n")
-            
-            # List classes first, then functions
-            classes = [i for i in module_items if i["type"] == "class"]
-            functions = [i for i in module_items if i["type"] == "function"]
-            
-            if classes:
-                f.write("### Classes\n\n")
-                for item in sorted(classes, key=lambda x: x["name"]):
-                    params = ", ".join(item.get("parameters", []))
-                    has_doc = "✅" if item.get("has_docstring", False) else "❌"
-                    f.write(f"- [{item['type'].title()}] **{item['name']}** ({params}) | Docstring: {has_doc} | Complexity: {item.get('complexity', 1)}\n")
-            
-            if functions:
-                f.write("\n### Functions\n\n")
-                for item in sorted(functions, key=lambda x: x["name"]):
-                    params = ", ".join(item.get("parameters", []))
-                    has_doc = "✅" if item.get("has_docstring", False) else "❌"
-                    f.write(f"- [{item['type'].title()}] **{item['name']}** ({params}) | Docstring: {has_doc} | Complexity: {item.get('complexity', 1)}\n")
-                    
-            f.write("\n")
-            
-    return todo_path
+    return analyzer.generate_comprehensive_report(repo_root / "tests")["todo"]
 
 def generate_coverage_report():
     """
@@ -379,88 +734,45 @@ def generate_coverage_report():
     """
     repo_root = Path(__file__).resolve().parents[1]
     analyzer = CodeEntityAnalyzer(repo_root)
-    analyzer.discover_all_structures()
-    test_analysis = analyzer.analyze_tests()
-    suggestions = analyzer.generate_test_suggestions()
-    
-    coverage_path = repo_root / "tests" / "doc_forge_coverage.md"
-    with open(coverage_path, "w", encoding="utf-8") as f:
-        f.write("# Doc Forge Test Coverage Report\n\n")
-        
-        # Write summary statistics
-        coverage_pct = test_analysis["coverage_percentage"]
-        f.write(f"## Coverage Summary\n\n")
-        f.write(f"- **Overall Coverage**: {coverage_pct:.1f}%\n")
-        f.write(f"- **Total Items**: {test_analysis['total_items']}\n")
-        f.write(f"- **Tested Items**: {test_analysis['tested_items']}\n")
-        f.write(f"- **Untested Items**: {test_analysis['untested_items']}\n\n")
-        
-        # Write module-level coverage
-        f.write("## Coverage by Module\n\n")
-        for module_name, data in test_analysis["coverage"]["by_module"].items():
-            total = len(data["tested"]) + len(data["untested"])
-            if total == 0:
-                continue
-                
-            module_pct = (len(data["tested"]) / total) * 100
-            f.write(f"### {module_name}\n\n")
-            f.write(f"- Coverage: {module_pct:.1f}%\n")
-            f.write(f"- Tested: {len(data['tested'])}\n")
-            f.write(f"- Untested: {len(data['untested'])}\n\n")
-        
-        # Write tested items
-        f.write("## Tested Items\n\n")
-        for item in test_analysis["coverage"]["tested"]:
-            f.write(f"- **{item['type'].title()}**: `{item['name']}` ({item['module_path']})\n")
-        
-        # Write untested items with priority
-        f.write("\n## Untested Items\n\n")
-        
-        # Group by priority
-        for priority in ["high", "medium", "low"]:
-            priority_items = [s for s in suggestions["suggestions"] if s["priority"] == priority]
-            if priority_items:
-                f.write(f"### {priority.title()} Priority\n\n")
-                for suggestion in priority_items:
-                    item = suggestion["item"]
-                    f.write(f"- **{item['type'].title()}**: `{item['name']}` ({item['module_path']})\n")
-                    f.write(f"  - **Suggestion**: {suggestion['suggested_approach']}\n")
-                    f.write(f"  - **Proposed Test Name**: `{suggestion['test_function_name']}`\n\n")
-        
-    return coverage_path
+    return analyzer.generate_comprehensive_report(repo_root / "tests")["coverage"]
 
-def generate_test_stubs():
-    """Generate test stub files for untested items."""
+# Add a new function to generate all reports at once
+def generate_all_reports():
+    """Generate all Eidosian test analysis reports."""
     repo_root = Path(__file__).resolve().parents[1]
     analyzer = CodeEntityAnalyzer(repo_root)
-    analyzer.discover_all_structures()
-    analyzer.analyze_tests()
-    
-    # Generate stubs
-    stubs_info = analyzer.generate_test_stubs()
-    
-    print(f"✅ Generated {stubs_info['stub_count']} test stub files:")
-    for file_path in stubs_info["generated_files"]:
-        print(f"  - {file_path}")
-    
-    return stubs_info["generated_files"]
+    reports = analyzer.generate_comprehensive_report()
+    print(f"✨ Generated Eidosian test analysis suite:")
+    print(f"📋 TODO document: {reports['todo']}")
+    print(f"📊 Coverage report: {reports['coverage']}")
+    print(f"🧪 Test stubs: {len(reports['stubs'])} files")
+    print(f"📈 Visualization: {reports['visualization']}")
+    return reports
 
 if __name__ == "__main__":
     # Process command-line arguments
-    if "--todo" in sys.argv or len(sys.argv) == 1:
+    if "--all" in sys.argv:
+        generate_all_reports()
+    elif "--todo" in sys.argv or len(sys.argv) == 1:
         todo_file = generate_todo_document()
         print(f"✅ Generated test TODO document at: {todo_file}")
-        
-    if "--coverage" in sys.argv or len(sys.argv) == 1:
+    elif "--coverage" in sys.argv:
         coverage_file = generate_coverage_report()
         print(f"✅ Coverage report created at: {coverage_file}")
-        
-    if "--stubs" in sys.argv:
+    elif "--stubs" in sys.argv:
         stub_files = generate_test_stubs()
-        
-    if "--help" in sys.argv:
-        print("Available options:")
+    elif "--viz" in sys.argv:
+        repo_root = Path(__file__).resolve().parents[1]
+        analyzer = CodeEntityAnalyzer(repo_root)
+        analyzer.discover_all_structures()
+        analyzer.analyze_tests()
+        viz_path = analyzer.visualize_coverage()
+        print(f"✅ Coverage visualization created at: {viz_path}")
+    elif "--help" in sys.argv:
+        print("🌀 Eidosian Test Analysis - Available options:")
+        print("  --all       Generate all reports (comprehensive analysis)")
         print("  --todo      Generate comprehensive TODO document")
         print("  --coverage  Generate test coverage report")
         print("  --stubs     Generate test stub files")
+        print("  --viz       Generate visual coverage report (HTML)")
         print("  --help      Show this help message")
