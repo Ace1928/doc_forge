@@ -47,14 +47,14 @@ build:
     build:
       html:
         - echo "Building HTML documentation with Sphinx..."
-        - sphinx-build -b html docs/ $READTHEDOCS_OUTPUT/html/
+        - python -m sphinx -b html docs/ $READTHEDOCS_OUTPUT/html/
       pdf:
         - echo "Building PDF documentation with Sphinx..."
-        - sphinx-build -b latex docs/ $READTHEDOCS_OUTPUT/latex/
+        - python -m sphinx -b latex docs/ $READTHEDOCS_OUTPUT/latex/
         - make -C $READTHEDOCS_OUTPUT/latex all-pdf
       epub:
         - echo "Building ePub documentation with Sphinx..."
-        - sphinx-build -b epub docs/ $READTHEDOCS_OUTPUT/epub/
+        - python -m sphinx -b epub docs/ $READTHEDOCS_OUTPUT/epub/
     post_build:
       - echo "✅ Build checks Complete"
 
