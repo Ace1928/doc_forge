@@ -24,6 +24,7 @@ import yaml
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
+import ast
 
 # 📊 Structured Logging - Self-Awareness Foundation
 logging.basicConfig(level=logging.INFO)
@@ -619,6 +620,36 @@ class DocumentationDiscovery:
             except Exception as e:
                 logger.warning(f"Error marking orphan document {orphan}: {e}")
 
+def discover_code_structures(root_dir: Path):
+    """
+    Recursively scan for Python files and parse their AST for modules,
+    classes, and functions.
+    Returns a list of dicts describing discovered items.
+    """
+    results = []
+    for dirpath, _, filenames in os.walk(root_dir):
+        for fname in filenames:
+            if fname.endswith(".py"):
+                filepath = Path(dirpath) / fname
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        tree = ast.parse(f.read(), filename=str(filepath))
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.ClassDef):
+                            results.append({
+                                "type": "class",
+                                "name": node.name,
+                                "file": str(filepath)
+                            })
+                        elif isinstance(node, ast.FunctionDef):
+                            results.append({
+                                "type": "function",
+                                "name": node.name,
+                                "file": str(filepath)
+                            })
+                except Exception:
+                    pass
+    return results
 
 if __name__ == "__main__":
     # Run as a standalone script to test
