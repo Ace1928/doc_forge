@@ -1,17 +1,43 @@
-# Project Documentation
+<!-- :orphan: -->
 
-Welcome to the comprehensive documentation for this project.
+# Doc Forge Documentation
 
-## Structure
+Welcome to the Doc Forge documentation. This project provides tools and utilities for generating and managing technical documentation.
 
-- [Manual Documentation](manual/): Hand-written documentation
-- [Auto-Generated Documentation](auto/): Documentation generated from code
-- [Assets](assets/): Images, diagrams, and other static assets
+## Documentation Structure
 
-## Languages
+```{toctree}
+:maxdepth: 2
+:caption: Manual Documentation
 
-- [Python](manual/python/): Python documentation
-- [Cpp](manual/cpp/): Cpp documentation
-- [Rust](manual/rust/): Rust documentation
-- [Go](manual/go/): Go documentation
-- [Javascript](manual/javascript/): Javascript documentation
+manual/python/index
+manual/cpp/index
+manual/rust/index
+manual/go/index
+manual/javascript/index
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Auto-generated Documentation
+
+auto/python/index
+auto/cpp/index
+auto/rust/index
+auto/go/index
+auto/javascript/index
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Source Documentation
+
+source/index
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Assets
+
+assets/README
+```
