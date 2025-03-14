@@ -497,14 +497,14 @@ class DocManifestManager:
         # Add manual documentation sections
         index_content += "## Manual Documentation\n\n"
         manual_sections = self.manifest["documentation_categories"]["manual"]["sections"]
-        for name, section in manual_sections.items():
+        for _, section in manual_sections.items():
             index_content += f"### {section['title']}\n\n"
             index_content += f"[View {section['title']}]({section['path']}/index.md)\n\n"
         
         # Add auto-generated documentation sections
         index_content += "## Auto-Generated Documentation\n\n"
         auto_sections = self.manifest["documentation_categories"]["auto"]["sections"]
-        for name, section in auto_sections.items():
+        for _, section in auto_sections.items():
             index_content += f"### {section['title']}\n\n"
             index_content += f"[View {section['title']}]({section['path']}/index.md)\n\n"
         
