@@ -17,7 +17,7 @@ if version_file.exists():
     with open(version_file, "r", encoding="utf-8") as f:
         version = f.read().strip()
 else:
-    version = "1.0.0"  # Default version
+    version = "0.1.0"  # Default version
 
 # Read long description from README.md if it exists
 readme_file = Path(__file__).parent / "README.md"
@@ -60,45 +60,46 @@ extras_require = {
     ]
 }
 
-setup(
-    name="doc_forge",
-    version=version,
-    description="Universal Documentation Management System with Eidosian principles",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    author="Lloyd Handyside",
-    author_email="ace1928@gmail.com",
-    maintainer="Neuroforge",
-    maintainer_email="lloyd.handyside@neuroforge.io",
-    url="https://doc-forge.readthedocs.io/",
-    project_urls={
-        "Source": "https://github.com/Neuroforge/doc_forge",
-        "Documentation": "https://doc-forge.readthedocs.io/",
-        "Issue Tracker": "https://github.com/Neuroforge/doc_forge/issues",
-    },
-    packages=find_packages(where="src"),
-    package_dir={"": "src"},
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "Topic :: Software Development :: Documentation",
-        "Topic :: Software Development :: Libraries :: Python Modules",
-    ],
-    python_requires=">=3.8",
-    install_requires=install_requires,
-    extras_require=extras_require,
-    entry_points={
-        "console_scripts": [
-            "doc-forge=doc_forge:main",
+if __name__ == "__main__":
+    setup(
+        name="doc_forge",
+        version=version,
+        description="Universal Documentation Management System with Eidosian principles",
+        long_description=long_description,
+        long_description_content_type="text/markdown",
+        author="Lloyd Handyside",
+        author_email="ace1928@gmail.com",
+        maintainer="Lloyd Handyside",
+        maintainer_email="ace1928@gmail.com",
+        url="https://doc-forge.readthedocs.io/",
+        project_urls={
+            "Source": "https://github.com/Ace1928/doc_forge",
+            "Documentation": "https://doc-forge.readthedocs.io/",
+            "Issue Tracker": "https://github.com/Ace1928/doc_forge/issues",
+        },
+        packages=find_packages(where="src"),
+        package_dir={"": "src"},
+        classifiers=[
+            "Development Status :: 4 - Beta",
+            "Intended Audience :: Developers",
+            "License :: OSI Approved :: MIT License",
+            "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.8",
+            "Programming Language :: Python :: 3.9",
+            "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
+            "Programming Language :: Python :: 3.12",
+            "Topic :: Software Development :: Documentation",
+            "Topic :: Software Development :: Libraries :: Python Modules",
         ],
-    },
-    include_package_data=True,
-    zip_safe=False,
-)
+        python_requires=">=3.8",
+        install_requires=install_requires,
+        extras_require=extras_require,
+        entry_points={
+            "console_scripts": [
+                "doc-forge=doc_forge:main",
+            ],
+        },
+        include_package_data=True,
+        zip_safe=False,
+    )

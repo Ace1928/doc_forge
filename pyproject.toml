@@ -1,7 +1,7 @@
 # 🌀 Pyproject with Eidosian harmony – universal and adaptive! 🌍
 
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [project]
 name = "doc_forge"
-version = "1.0.0"
+version = "0.1.0"
 description = "Universal Documentation Management System with Eidosian principles"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -18,7 +18,8 @@ authors = [
     {name = "Lloyd Handyside", email = "ace1928@gmail.com"}
 ]
 maintainers = [
-    {name = "Neuroforge", email = "lloyd.handyside@neuroforge.io"}
+    {name = "Eidos", email = "syntheticeidos@gmail.com"},
+    {name = "Lloyd Handyside", email = "ace1928@gmail.com"}
 ]
 keywords = ["documentation", "sphinx", "autodoc", "eidosian"]
 classifiers = [
@@ -81,9 +82,9 @@ docs = [
 
 [project.urls]
 "Homepage" = "https://doc-forge.readthedocs.io/"
-"Source" = "https://github.com/Neuroforge/doc_forge"
+"Source" = "https://github.com/Ace1928/doc_forge"
 "Documentation" = "https://doc-forge.readthedocs.io/"
-"Issue Tracker" = "https://github.com/Neuroforge/doc_forge/issues"
+"Issue Tracker" = "https://github.com/Ace1928/doc_forge/issues"
 
 [project.scripts]
 doc-forge = "doc_forge:main"
