@@ -16,12 +16,11 @@ Following Eidosian principles of:
 
 import json
 import logging
-import os
 import re
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Any, Union, Tuple
+from typing import Dict, List, Set, Any, Union, Optional
 
 # 📊 Self-aware logging system
 logging.basicConfig(
@@ -136,7 +135,7 @@ class DocManifestManager:
         start_time = time.time()
         
         # Track discovered documents
-        discovered_docs: Dict[str, Dict[str, Any]] = {
+        discovered_docs: Dict[str, Dict[str, Dict[str, Any]]] = {
             "manual": {},
             "auto": {},
             "source": {},
@@ -167,8 +166,11 @@ class DocManifestManager:
         """
         Discover manually written documentation.
         Manual docs are the artisanal treasures of knowledge! 📜
+        
+        Returns:
+            Dictionary mapping category names to document collections
         """
-        manual_docs = {}
+        manual_docs: Dict[str, Dict[str, Any]] = {}
         
         # Map of common manual documentation directories to categories
         manual_dirs = {
@@ -198,8 +200,11 @@ class DocManifestManager:
         """
         Discover auto-generated documentation.
         Auto-docs are the mechanized precision of the documentation system! 🤖
+        
+        Returns:
+            Dictionary mapping category names to document collections
         """
-        auto_docs = {}
+        auto_docs: Dict[str, Dict[str, Any]] = {}
         
         # Map of common auto-generated documentation directories to categories
         auto_dirs = {
@@ -235,7 +240,7 @@ class DocManifestManager:
         Returns:
             List of document metadata
         """
-        docs = []
+        docs: List[Dict[str, Any]] = []
         
         # Skip if the directory doesn't exist
         if not directory.exists():
@@ -272,7 +277,7 @@ class DocManifestManager:
         Returns:
             Document metadata
         """
-        metadata = {
+        metadata: Dict[str, Any] = {
             "path": str(file_path.relative_to(self.docs_dir)),
             "title": file_path.stem.replace("_", " ").title(),
             "type": doc_type,
@@ -305,7 +310,7 @@ class DocManifestManager:
                 metadata["description"] = description[:150] + ("..." if len(description) > 150 else "")
             
             # Extract references to other documents
-            references = set()
+            references: Set[str] = set()
             
             # Markdown links
             md_links = re.finditer(r'\[.*?\]\((.*?)\)', content)
@@ -322,7 +327,9 @@ class DocManifestManager:
             
             # Store references
             if references:
+                # Store references as a list in the metadata dictionary
                 metadata["references"] = list(references)
+                # Also store in our internal references map
                 self.doc_references[metadata["path"]] = references
             
         except Exception as e:
@@ -330,7 +337,7 @@ class DocManifestManager:
         
         return metadata
     
-    def _update_manifest_with_discovered_docs(self, discovered_docs: Dict[str, Dict[str, Any]]) -> None:
+    def _update_manifest_with_discovered_docs(self, discovered_docs: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
         """
         Update the manifest with discovered documentation.
         Perfect synchronization between discovery and registry! 🔄
@@ -364,7 +371,7 @@ class DocManifestManager:
         Returns:
             Dictionary with validation results
         """
-        results = {
+        results: Dict[str, List[str]] = {
             "missing_docs": [],
             "outdated_docs": [],
             "orphaned_docs": []
@@ -415,7 +422,7 @@ class DocManifestManager:
         Returns:
             List of outdated documentation paths
         """
-        outdated_docs = []
+        outdated_docs: List[str] = []
         
         # Add logic to check if docs are older than their source
         # This is project-specific and would typically compare
@@ -431,10 +438,10 @@ class DocManifestManager:
         Returns:
             List of orphaned documentation paths
         """
-        orphaned_docs = []
+        orphaned_docs: List[str] = []
         
         # Build a set of all referenced documents
-        all_references = set()
+        all_references: Set[str] = set()
         for references in self.doc_references.values():
             all_references.update(references)
         
@@ -517,7 +524,7 @@ class DocManifestManager:
         # Save the manifest
         self.save_manifest()
 
-def load_doc_manifest(repo_path: Union[str, Path] = None) -> Dict[str, Any]:
+def load_doc_manifest(repo_path: Optional[Union[str, Path]]) -> Dict[str, Any]:
     """
     Load and synchronize the documentation manifest with Eidosian precision.
     
@@ -543,17 +550,18 @@ def load_doc_manifest(repo_path: Union[str, Path] = None) -> Dict[str, Any]:
             if (path / ".git").exists() or (path / "docs").exists():
                 repo_path = path
                 break
-                
-        if repo_path is None:
-            logger.error("❌ Repository path not specified and couldn't be auto-detected")
-            return {"error": "Repository path not found"}
+        
+    # Ensure repo_path is not None before proceeding - using different approach to avoid type error
+    if repo_path is None:
+        logger.error("❌ Repository path not specified and couldn't be auto-detected")
+        return {"error": "Repository path not found"}
     
-    repo_path = Path(repo_path)
+    repo_path_obj = Path(repo_path)
     
-    logger.info(f"📄 Loading documentation manifest from {repo_path}")
+    logger.info(f"📄 Loading documentation manifest from {repo_path_obj}")
     
     # Create manifest manager
-    manager = DocManifestManager(repo_path)
+    manager = DocManifestManager(repo_path_obj)
     
     # Synchronize manifest with filesystem to ensure it's up-to-date
     manager.sync_manifest_with_filesystem()
