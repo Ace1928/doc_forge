@@ -1,22 +1,35 @@
+#!/usr/bin/env python3
+# 🌀 Eidosian Main Entry Point
 """
-Main entry point for the Python project.
+Main Entry Point - The Gateway to Doc Forge
+
+This module serves as the primary entry point for Doc Forge,
+redirecting to the appropriate command handler based on user input.
+Following Eidosian principles of flow and precision.
 """
-from typing import Dict, Any
 
+import os
+import sys
+import logging
+from pathlib import Path
+from typing import List, Optional
 
-def run() -> Dict[str, Any]:
+# Import runner to avoid circular imports
+from .run import main as run_main
+from .version import get_version_string
+
+def main() -> int:
     """
-    Run the main functionality of the project.
+    Main entry point for Doc Forge.
     
     Returns:
-        Dictionary with the results
+        Exit code (0 for success)
     """
-    return {
-        "status": "success",
-        "message": "Hello from Python project!"
-    }
-
+    # Simply delegate to run_main which handles all commands
+    return run_main()
 
 if __name__ == "__main__":
-    result = run()
-    print(f"Result: {result}")
+    # Display version for direct script execution
+    print(f"Doc Forge v{get_version_string()}")
+    print("Use 'python -m doc_forge' or 'doc-forge' to run commands.")
+    sys.exit(main())

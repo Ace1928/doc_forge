@@ -20,12 +20,13 @@ from pathlib import Path
 from typing import Dict, List, Set, Optional, Any, Union
 
 # Import version information for consistency
-from .version import VERSION, get_version_info
+from .version import VERSION, get_version_info, get_version_string
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 📊 Self-aware logging system
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 logger = logging.getLogger("doc_forge.global_info")
+logger.info(f"Doc Forge version initialized: {get_version_string()}")
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🏗️ Project structure configuration - The architecture of our universe

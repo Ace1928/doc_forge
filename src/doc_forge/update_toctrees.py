@@ -1,374 +1,334 @@
 #!/usr/bin/env python3
-# 🌀 Eidosian TOC Tree Manager
+# 🌀 Eidosian TOC Tree Management
 """
-TOC Tree Manager - Optimizing Document Organization
+TOC Tree Management - Perfect Documentation Hierarchy
 
-This script ensures that documentation is properly organized in TOC trees without
-duplications or orphaned documents. It analyzes the current state of the documentation
-and adjusts TOC trees for optimal organization.
+This module analyzes and updates table of contents trees across documentation,
+ensuring perfect organization, navigation, and completeness following Eidosian
+principles.
 
 Following Eidosian principles of:
-- Structure as Control: Perfect organization of documentation
-- Contextual Integrity: Documents connected by logical relationships
-- Self-Awareness: System that knows and improves its own structure
+- Structure as Control: Perfect organization of documentation hierarchy
+- Flow Like a River: Seamless navigation between documentation sections
+- Self-Awareness: Understanding the document ecosystem
 """
-from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional, Any
-import logging
-import re
-import os
-import sys
-import json
-from .utils.paths import get_repo_root, get_docs_dir
 
-# 📊 Structured Logging - Self-Awareness Foundation
-logging.basicConfig(level=logging.INFO,
-                   format="%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)")
-logger = logging.getLogger("eidosian_docs.toctree_manager")
+import os
+import re
+import sys
+import logging
+from pathlib import Path
+from typing import Dict, List, Set, Tuple, Optional, Any, DefaultDict
+from collections import defaultdict
+
+# Import project-wide utilities
+from .utils.paths import get_repo_root, get_docs_dir, resolve_path
+from .source_discovery import DocumentationDiscovery, discover_documentation
+
+# 📊 Self-Aware Logging - The foundation of understanding
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)",
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger("doc_forge.toctrees")
 
 class TocTreeManager:
-    """Manages and optimizes documentation TOC trees with architectural precision. 🏛️"""
+    """
+    Table of Contents Tree Manager with perfect Eidosian structure awareness.
+    
+    Maintains and updates documentation hierarchy for optimal organization.
+    """
     
     def __init__(self, docs_dir: Path):
-        self.docs_dir = docs_dir  # 📁 Documentation home
-        self.index_file = docs_dir / "index.rst"  # 📄 Primary index
-        if not self.index_file.exists() and (docs_dir / "index.md").exists():
-            self.index_file = docs_dir / "index.md"
-        self.manifest_path = docs_dir / "docs_manifest.json"  # 📘 Centralized manifest
-        self.toctrees = {}  # 🌲 TOC tree registry
-        self.referenced_docs = set()  # 🔗 Tracked references
-        self.orphaned_docs = []  # 🏝️ Documents without a home
-        self.duplicate_references = {}  # 🔄 Duplicated references
-        self.manifest = self._load_manifest()  # 📊 Documentation manifest
-        
-    def _load_manifest(self) -> Dict:
-        """Load the documentation manifest with precision and grace."""
-        if self.manifest_path.exists():
-            try:
-                with open(self.manifest_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to load manifest: {e}")
-        return {}
-        
-    def analyze_toctrees(self) -> None:
         """
-        Analyze current TOC trees and identify issues.
-        Like a detective examining the scene of disorganization! 🕵️‍♂️
-        """
-        if not self.index_file.exists():
-            logger.error(f"❌ Index file not found at {self.index_file}")
-            return
-            
-        with open(self.index_file, "r", encoding="utf-8") as f:
-            content = f.read()
-            
-        # Find all toctree directives - the skeleton of our documentation
-        toctree_matches = re.finditer(
-            r'(?:\.\. toctree::|```{toctree})(.*?)(?:\n\n|\n[^\s])',
-            content, re.DOTALL)
+        Initialize the TOC tree manager.
         
-        for match in toctree_matches:
-            toctree_content = match.group(1)
-            toctree_lines = toctree_content.strip().split('\n')
-            
-            # Extract caption if present
-            caption = None
-            for line in toctree_lines:
-                if ':caption:' in line:
-                    caption = line.split(':caption:', 1)[1].strip()
-                    break
-            
-            # Extract documents referenced in this toctree
-            doc_matches = re.finditer(r'\n\s*([a-zA-Z0-9_/.-]+)', toctree_content)
-            for doc_match in doc_matches:
-                doc = doc_match.group(1).strip()
-                self.referenced_docs.add(doc)
-                
-                # Track which toctree this document belongs to
-                toc_key = caption or "main"
-                if toc_key not in self.toctrees:
-                    self.toctrees[toc_key] = []
-                if doc not in self.toctrees[toc_key]:
-                    self.toctrees[toc_key].append(doc)
-                    
-                # Check for duplicate references
-                for other_toc_key, docs in self.toctrees.items():
-                    if other_toc_key != toc_key and doc in docs:
-                        if doc not in self.duplicate_references:
-                            self.duplicate_references[doc] = []
-                        self.duplicate_references[doc].append((toc_key, other_toc_key))
-                    
-        # Find all documents in the docs directory - the entire document universe
-        all_docs = set()
-        for root, _, files in os.walk(self.docs_dir):
-            rel_path = Path(root).relative_to(self.docs_dir)
-            for file in files:
-                if file.endswith(('.md', '.rst')) and not self._is_excluded(root, file):
-                    if rel_path == Path('.'):
-                        all_docs.add(file)
-                    else:
-                        all_docs.add(str(rel_path / file))
-                    
-        # Strip extensions for comparison
-        referenced_paths = {self._strip_extension(doc) for doc in self.referenced_docs}
-        all_paths = {self._strip_extension(doc) for doc in all_docs}
-        
-        # Find orphans - the lonely documents
-        self.orphaned_docs = list(all_paths - referenced_paths)
-        logger.info(f"📊 Analysis complete: {len(self.referenced_docs)} referenced, {len(self.orphaned_docs)} orphaned docs")
-        
-    def _is_excluded(self, path: str, filename: str) -> bool:
-        """Check if a file should be excluded from TOC processing."""
-        exclude_dirs = ['_build', '_static', '_templates', '__pycache__']
-        if any(excl in path for excl in exclude_dirs):
-            return True
-        excluded_files = ['conf.py', 'Thumbs.db', '.DS_Store']
-        return filename in excluded_files
-        
-    def _strip_extension(self, path: str) -> str:
-        """Strip file extensions for fair comparison."""
-        return re.sub(r'\.(md|rst)$', '', path)
-        
-    def fix_toctrees(self) -> None:
+        Args:
+            docs_dir: Root directory of documentation
         """
-        Fix issues in TOC trees with surgical precision. 🔧
-        Removes duplicates and ensures proper organization.
-        """
-        if not self.index_file.exists():
-            logger.error(f"❌ Index file not found at {self.index_file}")
-            return
-            
-        with open(self.index_file, "r", encoding="utf-8") as f:
-            content = f.read()
-            
-        # Remove duplicate references - nobody likes seeing the same doc twice!
-        modified = False
-        for doc, positions in self.duplicate_references.items():
-            logger.info(f"🔄 Found duplicate reference to {doc} in toctrees: {positions}")
-            # We keep the doc in the first toctree it appears in and remove from others
-            for toc_key1, toc_key2 in positions:
-                # Find the toctree with this caption and remove the duplicate doc
-                toctree_pattern = rf'(:caption:\s*{re.escape(toc_key2)}.*?\n\s*)({re.escape(doc)})'
-                if re.search(toctree_pattern, content, re.DOTALL):
-                    content = re.sub(toctree_pattern, r'\1', content, flags=re.DOTALL)
-                    modified = True
-                    logger.info(f"✅ Removed duplicate reference to {doc} from toctree {toc_key2}")
-                
-        # Add orphaned documents to the main toctree
-        if self.orphaned_docs:
-            logger.info(f"🏝️ Adding {len(self.orphaned_docs)} orphaned documents to main toctree")
-            # Find the last toctree directive
-            toctree_match = list(re.finditer(r'(\.\. toctree::|```{toctree})(.*?)(?:\n\n|\n[^\s])', content, re.DOTALL))[-1]
-            if toctree_match:
-                toctree_end = toctree_match.end()
-                # Add orphaned docs to the end of the last toctree
-                orphan_entries = "\n".join(f"   {doc}" for doc in sorted(self.orphaned_docs))
-                content = content[:toctree_end] + "\n" + orphan_entries + content[toctree_end:]
-                modified = True
-                
-        # Only write if changes were made - don't disturb what's already perfect
-        if modified:
-            with open(self.index_file, "w", encoding="utf-8") as f:
-                f.write(content)
-            logger.info(f"✅ Updated TOC trees in {self.index_file}")
-
-    def add_orphan_directives(self) -> int:
-        """
-        Add :orphan: directive to truly orphaned documents that shouldn't be in TOC.
-        Returns the number of files modified.
-        """
-        count = 0
-        for orphan in self.orphaned_docs:
-            # Try both .md and .rst extensions
-            for ext in [".md", ".rst"]:
-                orphan_file = self.docs_dir / f"{orphan}{ext}"
-                if orphan_file.exists() and self._add_orphan_directive(orphan_file):
-                    count += 1
-                    break
-        return count
+        self.docs_dir = docs_dir
+        self.files_updated = 0
+        self.toc_entries_added = 0
+        self.discovery = DocumentationDiscovery(docs_dir=docs_dir)
+        self.documents = self.discovery.discover_all()
+        self.toc_structure = self.discovery.generate_toc_structure(self.documents)
     
-    def _add_orphan_directive(self, file_path: Path) -> bool:
-        """Add :orphan: directive to a file if it doesn't already have one."""
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
+    def update_all_toctrees(self) -> int:
+        """
+        Update all table of contents trees with Eidosian precision.
+        
+        Returns:
+            Number of files updated
+        """
+        logger.info("🔄 Updating table of contents trees")
+        
+        # Start with the main index file
+        self._update_main_index()
+        
+        # Update section index files
+        self._update_section_indices()
+        
+        # Create missing index files for sections that need them
+        self._create_missing_indices()
+        
+        logger.info(f"✅ Updated {self.files_updated} files with {self.toc_entries_added} TOC entries")
+        return self.files_updated
+    
+    def _update_main_index(self) -> None:
+        """Update the main index.md file with the master table of contents."""
+        index_path = self.docs_dir / "index.md"
+        if not index_path.exists():
+            logger.info("📝 Creating main index.md file")
+            self._create_main_index()
+            return
+            
+        logger.info("🔄 Updating main index.md file")
+        
+        with open(index_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            
+        # Check if there's already a TOC
+        toc_match = re.search(r'```{toctree}.*?```', content, re.DOTALL)
+        
+        # Create new TOC content
+        toc_content = self._generate_main_toc()
+        
+        if toc_match:
+            # Replace existing TOC
+            new_content = content[:toc_match.start()] + toc_content + content[toc_match.end():]
+        else:
+            # Add TOC after the first heading
+            heading_match = re.search(r'^#\s+.*?$', content, re.MULTILINE)
+            if heading_match:
+                insert_pos = heading_match.end()
+                new_content = content[:insert_pos] + "\n\n" + toc_content + "\n\n" + content[insert_pos:].lstrip()
+            else:
+                # No heading found, just append it
+                new_content = content + "\n\n" + toc_content
+        
+        # Write the updated content
+        with open(index_path, "w", encoding="utf-8") as f:
+            f.write(new_content)
+            
+        self.files_updated += 1
+        logger.info("✅ Updated main index.md")
+    
+    def _create_main_index(self) -> None:
+        """Create a new main index.md file with the master table of contents."""
+        index_path = self.docs_dir / "index.md"
+        
+        # Get project name from directory name
+        project_name = self.docs_dir.parent.name.replace("_", " ").title()
+        
+        content = f"# {project_name} Documentation\n\n"
+        content += "Welcome to the documentation!\n\n"
+        content += self._generate_main_toc()
+        
+        with open(index_path, "w", encoding="utf-8") as f:
+            f.write(content)
+            
+        self.files_updated += 1
+        logger.info("✅ Created main index.md")
+    
+    def _generate_main_toc(self) -> str:
+        """Generate the main table of contents for the index file."""
+        toc = "```{toctree}\n"
+        toc += ":maxdepth: 2\n"
+        toc += ":caption: Contents\n\n"
+        
+        # Add section index files to the main TOC
+        for section_name, section_data in self.toc_structure.items():
+            if section_data["items"]:
+                section_title = section_data["title"]
+                toc += f"{section_name}/index\n"
+        
+        toc += "```\n"
+        return toc
+    
+    def _update_section_indices(self) -> None:
+        """Update or create section index files with appropriate TOC trees."""
+        for section_name, section_data in self.toc_structure.items():
+            if not section_data["items"]:
+                # Skip empty sections
+                continue
+                
+            # Ensure section directory exists
+            section_dir = self.docs_dir / section_name
+            section_dir.mkdir(exist_ok=True, parents=True)
+            
+            # Create or update section index
+            index_path = section_dir / "index.md"
+            self._update_section_index(section_name, section_data, index_path)
+    
+    def _update_section_index(self, section_name: str, section_data: Dict, index_path: Path) -> None:
+        """Update a specific section index file."""
+        # Check if index file exists
+        if index_path.exists():
+            with open(index_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 
-            # Check if file already has orphan directive
-            if ":orphan:" in content:
-                return False
-                
-            # Add orphan directive based on file type
-            if file_path.suffix == ".md":
-                new_content = f"<!-- :orphan: -->\n\n{content}"
-            else:  # .rst
-                new_content = f":orphan:\n\n{content}"
-                
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
-                
-            logger.info(f"✅ Added orphan directive to {file_path}")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Failed to add orphan directive to {file_path}: {e}")
-            return False
-
-    def sync_with_manifest(self) -> None:
-        """
-        Synchronize TOC structure with the documentation manifest.
-        The manifest becomes the single source of truth! 📖
-        """
-        if not self.manifest:
-            logger.warning("⚠️ No manifest data available for synchronization")
-            return
+            # Check if there's already a TOC
+            toc_match = re.search(r'```{toctree}.*?```', content, re.DOTALL)
             
-        try:
-            # Update manifest with latest TOC analysis
-            if "metadata" not in self.manifest:
-                self.manifest["metadata"] = {}
-                
-            if "validation_status" not in self.manifest["metadata"]:
-                self.manifest["metadata"]["validation_status"] = {}
-                
-            # Update orphaned docs list in manifest
-            self.manifest["metadata"]["validation_status"]["orphaned_docs"] = self.orphaned_docs
+            # Create new TOC content
+            toc_content = self._generate_section_toc(section_data)
             
-            # Update document references
-            doc_metrics = {
-                "total_files": len(self.referenced_docs) + len(self.orphaned_docs),
-                "referenced_files": len(self.referenced_docs),
-                "orphaned_files": len(self.orphaned_docs),
-                "duplicate_references": len(self.duplicate_references)
-            }
+            if toc_match:
+                # Replace existing TOC
+                new_content = content[:toc_match.start()] + toc_content + content[toc_match.end():]
+            else:
+                # Add TOC after the first heading
+                heading_match = re.search(r'^#\s+.*?$', content, re.MULTILINE)
+                if heading_match:
+                    insert_pos = heading_match.end()
+                    new_content = content[:insert_pos] + "\n\n" + toc_content + "\n\n" + content[insert_pos:].lstrip()
+                else:
+                    # No heading found, just append it
+                    new_content = content + "\n\n" + toc_content
+        else:
+            # Create new index file
+            title = section_data["title"]
+            new_content = f"# {title}\n\n"
+            new_content += self._generate_section_toc(section_data)
+        
+        # Write the updated content
+        with open(index_path, "w", encoding="utf-8") as f:
+            f.write(new_content)
             
-            if "doc_metrics" not in self.manifest["metadata"]:
-                self.manifest["metadata"]["doc_metrics"] = {}
-                
-            self.manifest["metadata"]["doc_metrics"].update(doc_metrics)
-            
-            # Save updated manifest
-            with open(self.manifest_path, "w", encoding="utf-8") as f:
-                json.dump(self.manifest, f, indent=4)
-                
-            logger.info(f"✅ Synchronized TOC analysis with manifest at {self.manifest_path}")
-        except Exception as e:
-            logger.error(f"❌ Failed to sync with manifest: {e}")
-
-    def update_manifest_doc_structure(self) -> None:
-        """
-        Update the manifest with the current TOC structure information.
-        This connects TOC management with the Living Docs concept.
-        """
-        if not self.manifest:
-            logger.warning("⚠️ No manifest data available for structure update")
-            return
-            
-        try:
-            # Create structure representation for the manifest
-            toc_structure = {}
-            
-            # Create a mapping of TOC sections
-            for toc_name, docs in self.toctrees.items():
-                toc_structure[toc_name] = {
-                    "title": toc_name,
-                    "docs": docs
-                }
-            
-            # Update the manifest
-            if "documentation_structure" not in self.manifest:
-                self.manifest["documentation_structure"] = {}
-                
-            self.manifest["documentation_structure"]["toc_trees"] = toc_structure
-            
-            # Save the updated manifest
-            with open(self.manifest_path, "w", encoding="utf-8") as f:
-                json.dump(self.manifest, f, indent=4)
-                
-            logger.info(f"✅ Updated documentation structure in manifest")
-        except Exception as e:
-            logger.error(f"❌ Failed to update structure in manifest: {e}")
-
-def update_toctrees(docs_dir: str = None, fix_orphans: bool = True, sync_manifest: bool = True) -> int:
-    """
-    Universal TOC Tree Update Function - Single interface for TOC tree management.
+        self.files_updated += 1
+        self.toc_entries_added += len(section_data["items"])
+        logger.info(f"✅ Updated section index for {section_name}")
     
-    Updates the table of contents structure for documentation, ensuring proper 
-    organization of documents and fixing orphaned files.
+    def _generate_section_toc(self, section_data: Dict) -> str:
+        """Generate the table of contents for a specific section."""
+        toc = "```{toctree}\n"
+        toc += ":maxdepth: 2\n"
+        toc += f":caption: {section_data['title']}\n\n"
+        
+        # Add items to the section TOC
+        for item in section_data["items"]:
+            # Extract the path without extension
+            url = item["url"]
+            if url.endswith(".html"):
+                url = url[:-5]  # Remove .html extension
+                
+            # Remove leading slash if present
+            if url.startswith("/"):
+                url = url[1:]
+                
+            # Ensure path is relative to section directory
+            parts = url.split("/")
+            if len(parts) > 1:
+                # This is a path with subdirectories
+                section = parts[0]
+                if section == section_data["title"].lower().replace(" ", "_"):
+                    # Remove redundant section prefix
+                    url = "/".join(parts[1:])
+            
+            # Add to TOC
+            toc += f"{url}\n"
+        
+        toc += "```\n"
+        return toc
+    
+    def _create_missing_indices(self) -> None:
+        """Create index files for directories that don't have them."""
+        # Find all directories without index files
+        for category, docs in self.documents.items():
+            # Group docs by directory
+            dir_docs = defaultdict(list)
+            for doc in docs:
+                dir_path = doc.path.parent
+                dir_docs[dir_path].append(doc)
+            
+            # Check each directory for an index file
+            for dir_path, dir_doc_list in dir_docs.items():
+                # Skip if this is a top-level directory (handled by _update_section_indices)
+                if dir_path == self.docs_dir:
+                    continue
+                    
+                # Skip if this directory already has an index file
+                index_md = dir_path / "index.md"
+                index_rst = dir_path / "index.rst"
+                if index_md.exists() or index_rst.exists():
+                    continue
+                    
+                # Create a new index file
+                dir_name = dir_path.name.replace("_", " ").title()
+                content = f"# {dir_name}\n\n"
+                
+                # Add all documents in this directory to the TOC
+                content += "```{toctree}\n"
+                content += ":maxdepth: 1\n"
+                content += f":caption: {dir_name}\n\n"
+                
+                for doc in dir_doc_list:
+                    # Skip if this is an index file
+                    if doc.path.stem.lower() == "index":
+                        continue
+                        
+                    # Add to TOC
+                    content += f"{doc.path.stem}\n"
+                
+                content += "```\n"
+                
+                # Write the index file
+                with open(index_md, "w", encoding="utf-8") as f:
+                    f.write(content)
+                    
+                self.files_updated += 1
+                self.toc_entries_added += len(dir_doc_list)
+                logger.info(f"✅ Created index for {dir_path.relative_to(self.docs_dir)}")
+
+def update_toctrees(docs_dir: Optional[Path] = None) -> int:
+    """
+    Update all table of contents trees across the documentation.
+    
+    This function serves as the universal interface to the TOC tree management system,
+    ensuring all documentation is properly organized and navigable.
     
     Args:
-        docs_dir: Path to the documentation directory (defaults to 'docs')
-        fix_orphans: Whether to add orphan directives to standalone files
-        sync_manifest: Whether to synchronize with the manifest system
+        docs_dir: Documentation directory (auto-detected if None)
         
     Returns:
-        Count of updated files (0 if no changes made)
+        Number of files updated (negative if there was an error)
     """
-    # Use the utils path resolver for consistent behavior
+    # Auto-detect docs directory if not provided
     if docs_dir is None:
-        docs_dir = get_docs_dir()
+        try:
+            docs_dir = get_docs_dir()
+        except Exception as e:
+            logger.error(f"❌ Failed to auto-detect docs directory: {e}")
+            return -1
     
-    # Convert to Path if string was provided
-    docs_dir = Path(docs_dir) if not isinstance(docs_dir, Path) else docs_dir
-    
-    # Ensure absolute path
-    if not docs_dir.is_absolute():
-        docs_dir = docs_dir.absolute()
-    
-    logger.info(f"🌲 TOCTree Manager initializing for {docs_dir}")
+    docs_dir = Path(docs_dir)
     
     if not docs_dir.is_dir():
-        logger.error(f"❌ Not a valid directory: {docs_dir}")
-        return 0
+        logger.error(f"❌ Documentation directory not found or not a directory: {docs_dir}")
+        return -1
+    
+    logger.info(f"🔍 Updating TOC trees in {docs_dir}")
+    
+    try:
+        # Create manager and update TOC trees
+        manager = TocTreeManager(docs_dir)
+        files_updated = manager.update_all_toctrees()
         
-    manager = TocTreeManager(docs_dir)
-    manager.analyze_toctrees()
-    manager.fix_toctrees()
-    
-    updated_count = 0
-    
-    # Fix orphans if requested
-    if fix_orphans:
-        orphan_count = manager.add_orphan_directives()
-        updated_count += orphan_count
-        
-    # Update manifest if requested
-    if sync_manifest:
-        manager.sync_with_manifest()
-        manager.update_manifest_doc_structure()
-    
-    logger.info(f"✅ Fixed TOC trees and processed {updated_count} files")
-    return updated_count
+        logger.info(f"✅ TOC tree update complete. Updated {files_updated} files")
+        return files_updated
+    except Exception as e:
+        logger.error(f"❌ TOC tree update failed: {e}")
+        import traceback
+        logger.debug(traceback.format_exc())
+        return -1
 
 if __name__ == "__main__":
-    # Improved command-line handling with more forgiving behavior
     import argparse
     
-    # Create parser with clearer help message
-    parser = argparse.ArgumentParser(
-        description="Update TOC trees in documentation directories",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument("docs_dir", nargs='?', type=Path, default=None, 
-                        help="Documentation directory (auto-detected if not specified)")
-    parser.add_argument("--no-orphans", action="store_true", 
-                        help="Don't add orphan directives to standalone files")
-    parser.add_argument("--no-manifest", action="store_true",
-                        help="Don't update the manifest")
-    parser.add_argument("--debug", action="store_true",
-                        help="Enable debug logging")
-    
+    parser = argparse.ArgumentParser(description="Update documentation TOC trees.")
+    parser.add_argument("docs_dir", nargs="?", type=Path, help="Documentation directory")
     args = parser.parse_args()
     
-    # Set debug logging if requested
-    if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-        logger.setLevel(logging.DEBUG)
-    
-    # Call with user arguments or defaults
-    result = update_toctrees(
-        docs_dir=args.docs_dir,
-        fix_orphans=not args.no_orphans,
-        sync_manifest=not args.no_manifest
-    )
-    
+    result = update_toctrees(args.docs_dir)
     sys.exit(0 if result >= 0 else 1)

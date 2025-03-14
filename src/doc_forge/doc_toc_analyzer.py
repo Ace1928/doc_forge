@@ -1,338 +1,551 @@
 #!/usr/bin/env python3
-# 🌀 Eidosian TOC Structure Analyzer
+# 🌀 Eidosian TOC Analysis System
 """
-TOC Structure Analyzer - Understanding Documentation Architecture
+TOC Analysis - Structure & Flow Analysis for Documentation
 
-This script analyzes the Table of Contents structure in documentation to identify
-structural issues, ensure proper hierarchy, and suggest improvements with
-Eidosian precision and intelligence.
-
-Following Eidosian principles of:
-- Structure as Control: Perfect documentation organization
-- Self-Awareness as Foundation: Understanding the document ecosystem
-- Flow Like a River: Creating seamless navigation paths
-- Contextual Integrity: Ensuring every document has purpose
+This module analyzes table of contents structures to ensure perfect
+navigation flow and hierarchical organization of documentation.
+It follows Eidosian principles of structure, flow, and precision.
 """
 
-import os
-import sys
 import re
-import json
+import sys
 import logging
-import argparse
+import json
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional, Any, DefaultDict, Union
-from collections import defaultdict, Counter
+from typing import Dict, List, Set, Tuple, Optional, Any
 
-# 📊 Self-Aware Logging - Perfect understanding through observation
+# Import project-wide utilities
+from .utils.paths import get_repo_root, get_docs_dir
+from .source_discovery import DocumentationDiscovery, discover_documentation
+
+# 📊 Self-aware logging system
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)",
-    handlers=[logging.StreamHandler()]
+    format="%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
 )
-logger = logging.getLogger("eidosian_docs.toc_analyzer")
-
-class TocEntry:
-    """Individual TOC entry with perfect structural awareness."""
-    
-    def __init__(self, title: str, target: str, level: int = 0, parent: Optional['TocEntry'] = None):
-        self.title = title
-        self.target = target
-        self.level = level
-        self.parent = parent
-        self.children: List['TocEntry'] = []
-        
-    def add_child(self, child: 'TocEntry') -> None:
-        """Add a child entry with perfect parent-child relationship."""
-        child.parent = self
-        self.children.append(child)
-        
-    def __repr__(self) -> str:
-        """String representation with Eidosian clarity."""
-        return f"TocEntry({self.title} -> {self.target}, level={self.level}, children={len(self.children)})"
+logger = logging.getLogger("doc_forge.toc_analyzer")
 
 class TocAnalyzer:
     """
-    Table of Contents Analyzer with Eidosian intelligence.
+    Table of Contents Analyzer with Eidosian precision and insight.
     
-    Analyzes documentation structure to ensure perfect organization,
-    identify structural issues, and suggest improvements.
+    Analyzes documentation structure to provide metrics and recommendations.
     """
     
     def __init__(self, docs_dir: Path):
         """
-        Initialize the TOC analyzer with foundational knowledge.
+        Initialize the TOC analyzer.
         
         Args:
-            docs_dir: Root directory of documentation
+            docs_dir: Documentation directory
         """
         self.docs_dir = docs_dir
-        self.docs_map: Dict[str, Path] = {}  # Maps doc IDs to paths
-        self.entries_by_file: DefaultDict[str, List[TocEntry]] = defaultdict(list)
-        self.main_toc: List[TocEntry] = []
-        self.orphaned_docs: List[str] = []
-        self.structural_issues: List[Dict[str, Any]] = []
+        self.discovery = DocumentationDiscovery(docs_dir=docs_dir)
+        self.documents = self.discovery.discover_all()
+        self.toc_structure = self.discovery.generate_toc_structure(self.documents)
+        self.metrics: Dict[str, Any] = {}
+        self.recommendations: List[str] = []
         
-        # Scan all documentation files
-        self._scan_docs()
-        # Extract TOC structures
-        self._extract_toc_structures()
+    def analyze_toc_structure(self) -> Dict[str, Any]:
+        """
+        Analyze the TOC structure with Eidosian precision.
         
-    def _scan_docs(self) -> None:
-        """Build a map of all documentation files with zero friction."""
-        # Process markdown files (primary format)
-        for file_path in self.docs_dir.glob("**/*.md"):
-            # Skip files in underscore directories (_build, _static, etc.)
-            if any(p.startswith('_') for p in file_path.parts):
-                continue
-                
-            # Get relative path for document ID
-            rel_path = file_path.relative_to(self.docs_dir)
-            doc_id = str(rel_path.with_suffix(''))  # Without extension
-            doc_id_with_ext = str(rel_path)
-            
-            # Map both with and without extension for flexibility
-            self.docs_map[doc_id] = file_path
-            self.docs_map[doc_id_with_ext] = file_path
-            
-        # Process RST files (secondary format)
-        for file_path in self.docs_dir.glob("**/*.rst"):
-            if any(p.startswith('_') for p in file_path.parts):
-                continue
-                
-            rel_path = file_path.relative_to(self.docs_dir)
-            doc_id = str(rel_path.with_suffix(''))
-            doc_id_with_ext = str(rel_path)
-            
-            self.docs_map[doc_id] = file_path
-            self.docs_map[doc_id_with_ext] = file_path
-            
-        logger.debug(f"📚 Found {len(self.docs_map) // 2} documentation files")
+        Returns:
+            Analysis results with metrics and recommendations
+        """
+        logger.info(f"🔍 Analyzing TOC structure for {self.docs_dir}")
+        
+        # Calculate metrics
+        self._calculate_metrics()
+        
+        # Generate recommendations
+        self._generate_recommendations()
+        
+        # Combine metrics and recommendations into a complete analysis
+        analysis = {
+            "metrics": self.metrics,
+            "recommendations": self.recommendations,
+            "structure_quality": self._evaluate_structure_quality()
+        }
+        
+        logger.info(f"✅ TOC structure analysis complete")
+        return analysis
     
-    def _extract_toc_structures(self) -> None:
-        """
-        Extract TOC structures from all documentation files with perfect precision.
-        """
-        # Start with the main index file - the root of all structure
-        index_path = self.docs_dir / "index.md"
-        if not index_path.exists():
-            index_path = self.docs_dir / "index.rst"
-            
-        if index_path.exists():
-            self._extract_toc_from_file(index_path, is_main=True)
-            
-        # Then process all other files to find additional TOC structures
-        for doc_id, file_path in self.docs_map.items():
-            # Skip index files we already processed
-            if file_path == index_path:
-                continue
-                
-            # Only process actual files, not symbolic links or directories
-            if file_path.is_file():
-                self._extract_toc_from_file(file_path)
-                
-        # Identify orphaned documents after processing all TOCs
-        self._identify_orphans()
+    def _calculate_metrics(self) -> None:
+        """Calculate metrics for the TOC structure."""
+        # Initialize metrics
+        metrics = {
+            "total_sections": len(self.toc_structure),
+            "total_documents": 0,
+            "section_sizes": {},
+            "section_depths": {},
+            "orphaned_documents": len(self.discovery.orphaned_documents),
+            "balance_score": 0.0,
+            "coverage_score": 0.0
+        }
         
-        # Analyze structural issues
-        self._analyze_structure()
+        # Calculate section-specific metrics
+        section_sizes = {}
+        section_proportions = {}
+        max_size = 0
+        
+        for section_name, section_data in self.toc_structure.items():
+            section_size = len(section_data["items"])
+            section_sizes[section_name] = section_size
+            metrics["total_documents"] += section_size
+            
+            if section_size > max_size:
+                max_size = section_size
+        
+        # Calculate balance score (how evenly distributed content is)
+        if metrics["total_sections"] > 0 and max_size > 0:
+            ideal_size = metrics["total_documents"] / metrics["total_sections"]
+            variance = sum((size - ideal_size) ** 2 for size in section_sizes.values()) / metrics["total_sections"]
+            metrics["balance_score"] = 100 * (1 - (variance / (ideal_size ** 2 + 1)))  # +1 to avoid division by zero
+            metrics["balance_score"] = max(0, min(100, metrics["balance_score"]))  # Clamp to 0-100
+        
+        # Calculate coverage score (percentage of documents in TOC vs. all discovered)
+        all_discovered = sum(len(docs) for docs in self.documents.values())
+        if all_discovered > 0:
+            metrics["coverage_score"] = 100 * metrics["total_documents"] / all_discovered
+        
+        # Store metrics
+        metrics["section_sizes"] = section_sizes
+        self.metrics = metrics
+    
+    def _generate_recommendations(self) -> None:
+        """Generate recommendations for TOC improvement."""
+        recommendations = []
+        
+        # Check balance between sections
+        unbalanced_threshold = 30  # Sections more than 30% larger than ideal
+        ideal_size = self.metrics["total_documents"] / max(1, self.metrics["total_sections"])
+        
+        for section, size in self.metrics["section_sizes"].items():
+            if size > (ideal_size * 1.3) and size > 5:  # Section is 30% larger than ideal and has >5 items
+                recommendations.append(f"Consider splitting '{section}' section as it contains {size} items (ideal: {ideal_size:.1f})")
+            elif size == 0:
+                recommendations.append(f"Section '{section}' is empty - consider removing it or adding content")
                 
-    def _extract_toc_from_file(self, file_path: Path, is_main: bool = False) -> None:
+        # Check for orphaned documents
+        if self.metrics["orphaned_documents"] > 0:
+            recommendations.append(f"Found {self.metrics['orphaned_documents']} orphaned documents - consider adding them to the TOC")
+        
+        # Balance score recommendations
+        if self.metrics["balance_score"] < 70:
+            recommendations.append("TOC structure is significantly unbalanced - consider redistributing content more evenly")
+        
+        # Check for missing essential sections
+        essential_sections = {"getting_started", "reference"}
+        existing_sections = set(self.toc_structure.keys())
+        missing = essential_sections - existing_sections
+        if missing:
+            recommendations.append(f"Missing essential section(s): {', '.join(missing)}")
+        
+        self.recommendations = recommendations
+    
+    def _evaluate_structure_quality(self) -> Dict[str, Any]:
+        """Evaluate the overall quality of the TOC structure."""
+        # Calculate an overall quality score based on metrics
+        balance_weight = 0.4  # Balance between sections: 40%
+        coverage_weight = 0.4  # Coverage of documents: 40%
+        orphan_weight = 0.2    # Orphaned documents penalty: 20%
+        
+        # Balance score is already calculated
+        balance_score = self.metrics["balance_score"]
+        
+        # Coverage score is already calculated
+        coverage_score = self.metrics["coverage_score"]
+        
+        # Orphan penalty
+        orphan_score = 100
+        if self.metrics["total_documents"] > 0:
+            orphan_ratio = self.metrics["orphaned_documents"] / (self.metrics["total_documents"] + self.metrics["orphaned_documents"])
+            orphan_score = 100 * (1 - orphan_ratio)
+        
+        # Calculate overall score
+        overall_score = (balance_score * balance_weight) + (coverage_score * coverage_weight) + (orphan_score * orphan_weight)
+        
+        # Determine quality rating
+        quality_rating = "Excellent"
+        if overall_score < 60:
+            quality_rating = "Poor"
+        elif overall_score < 75:
+            quality_rating = "Fair"
+        elif overall_score < 85:
+            quality_rating = "Good"
+        elif overall_score < 95:
+            quality_rating = "Very Good"
+            
+        return {
+            "overall_score": overall_score,
+            "quality_rating": quality_rating,
+            "component_scores": {
+                "balance_score": balance_score,
+                "coverage_score": coverage_score,
+                "orphan_score": orphan_score
+            }
+        }
+    
+    def visualize_structure(self, output_path: Optional[Path] = None) -> Path:
         """
-        Extract TOC entries from a single file.
+        Generate a visual representation of the TOC structure.
         
         Args:
-            file_path: Path to the documentation file
-            is_main: Whether this is the main index file
+            output_path: Path to save the visualization (defaults to docs_dir/toc_visualization.html)
+            
+        Returns:
+            Path to the generated visualization
         """
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-                
-            # Extract toctree directives based on file format
-            if file_path.suffix == '.md':
-                toctree_blocks = re.findall(r'```{toctree}(.*?)```', content, re.DOTALL)
-            elif file_path.suffix == '.rst':
-                toctree_blocks = re.findall(r'\.\. toctree::(.*?)\n\n', content, re.DOTALL)
-            else:
-                return
-            
-            for block in toctree_blocks:
-                # Extract caption if present
-                caption_match = re.search(r':caption:\s*(.+)', block)
-                caption = caption_match.group(1) if caption_match else ""
-                
-                # Extract maxdepth if present
-                depth_match = re.search(r':maxdepth:\s*(\d+)', block)
-                depth = int(depth_match.group(1)) if depth_match else 2
-                
-                # Extract entries - the core of TOC references
-                entries = re.findall(r'\n\s*([a-zA-Z0-9_/.-]+)', block)
-                
-                rel_path = str(file_path.relative_to(self.docs_dir))
-                for entry in entries:
-                    entry = entry.strip()
-                    if entry:
-                        # Use basename as title if not explicitly provided
-                        title = os.path.basename(entry).replace('_', ' ').title()
-                        toc_entry = TocEntry(title, entry, 0)
-                        self.entries_by_file[rel_path].append(toc_entry)
-                        
-                        if is_main:
-                            self.main_toc.append(toc_entry)
-                
-        except Exception as e:
-            logger.error(f"Error extracting TOC from {file_path}: {e}")
-            
-    def _parse_toc_block(self, block: str, file_path: Path, is_main: bool) -> None:
-        """
-        Parse a single TOC block and add entries to the TOC structure.
+        if output_path is None:
+            output_path = self.docs_dir / "toc_visualization.html"
         
-        Args:
-            block: The TOC block content
-            file_path: Path to the documentation file
-            is_main: Whether this is the main index file
-        """
-        lines = block.strip().split('\n')
-        current_entry: Optional[TocEntry] = None
+        # Convert TOC structure to a format suitable for visualization
+        visualization_data = {
+            "name": "Documentation",
+            "children": []
+        }
         
-        for line in lines:
-            line = line.strip()
-            if not line or line.startswith('..'):
-                continue
+        for section_name, section_data in self.toc_structure.items():
+            section_node = {
+                "name": section_data["title"],
+                "children": []
+            }
             
-            # Determine the level based on indentation
-            level = (len(line) - len(line.lstrip())) // 4
+            for item in section_data["items"]:
+                section_node["children"].append({
+                    "name": item["title"],
+                    "url": item["url"],
+                    "value": 1  # Each document has equal weight
+                })
             
-            # Extract title and target
-            if file_path.suffix == '.md':
-                match = re.match(r'\[(.*?)\]\((.*?)\)', line)
-                if match:
-                    title, target = match.groups()
-                else:
-                    continue
-            elif file_path.suffix == '.rst':
-                title = line
-                target = line.lower().replace(' ', '-')
-            else:
-                continue
+            visualization_data["children"].append(section_node)
+        
+        # Add orphaned documents if any
+        if self.discovery.orphaned_documents:
+            orphan_node = {
+                "name": "Orphaned Documents",
+                "children": []
+            }
             
-            # Create a new TOC entry
-            entry = TocEntry(title=title, target=target, level=level)
+            for orphan in self.discovery.orphaned_documents:
+                orphan_node["children"].append({
+                    "name": orphan.stem,
+                    "url": str(orphan.relative_to(self.docs_dir)),
+                    "value": 1
+                })
             
-            if is_main and level == 0:
-                self.main_toc.append(entry)
-            elif current_entry and level > current_entry.level:
-                current_entry.add_child(entry)
-            else:
-                self.entries_by_file[str(file_path)].append(entry)
+            visualization_data["children"].append(orphan_node)
+        
+        # Create HTML with D3.js visualization
+        html_content = self._generate_visualization_html(visualization_data)
+        
+        # Write to file
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+            
+        logger.info(f"📊 TOC visualization saved to {output_path}")
+        return output_path
+    
+    def _generate_visualization_html(self, data: Dict[str, Any]) -> str:
+        """Generate HTML content for visualization."""
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation TOC Structure Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }}
+        #visualization {{
+            width: 100%;
+            height: 800px;
+            border: 1px solid #ddd;
+        }}
+        .node circle {{
+            fill: #fff;
+            stroke: steelblue;
+            stroke-width: 3px;
+        }}
+        .node text {{
+            font: 12px sans-serif;
+        }}
+        .link {{
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2px;
+        }}
+        h1 {{
+            color: #333;
+            text-align: center;
+        }}
+        .metrics {{
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Documentation Structure Visualization</h1>
+    <div id="visualization"></div>
+    <div class="metrics">
+        <h2>Structure Metrics</h2>
+        <p><strong>Total Sections:</strong> {self.metrics.get('total_sections', 0)}</p>
+        <p><strong>Total Documents:</strong> {self.metrics.get('total_documents', 0)}</p>
+        <p><strong>Orphaned Documents:</strong> {self.metrics.get('orphaned_documents', 0)}</p>
+        <p><strong>Balance Score:</strong> {self.metrics.get('balance_score', 0):.2f}/100</p>
+        <p><strong>Coverage Score:</strong> {self.metrics.get('coverage_score', 0):.2f}%</p>
+        <p><strong>Overall Quality:</strong> {self._evaluate_structure_quality().get('quality_rating', 'Unknown')}</p>
+    </div>
+    
+    <script>
+        // Visualization data
+        const treeData = {json.dumps(data)};
+        
+        // Set up dimensions and margins
+        const margin = {{top: 20, right: 90, bottom: 30, left: 90}},
+              width = 960 - margin.left - margin.right,
+              height = 700 - margin.top - margin.bottom;
+              
+        // Create SVG
+        const svg = d3.select("#visualization").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+            .attr("transform", `translate(${{margin.left}},${{margin.top}})`);
+            
+        // Create tree layout
+        const tree = d3.tree().size([height, width]);
+        
+        // Assigns parent, children, height, depth
+        const root = d3.hierarchy(treeData, d => d.children);
+        root.x0 = height / 2;
+        root.y0 = 0;
+        
+        update(root);
+        
+        function update(source) {{
+            // Assigns the x and y position for the nodes
+            const treeData = tree(root);
+            
+            // Compute the new tree layout
+            const nodes = treeData.descendants();
+            const links = treeData.descendants().slice(1);
+            
+            // Normalize for fixed-depth
+            nodes.forEach(d => {{ d.y = d.depth * 180 }});
+            
+            // ****************** Nodes section ***************************
+            
+            // Update the nodes...
+            const node = svg.selectAll('g.node')
+                .data(nodes, d => d.id || (d.id = ++i));
                 
-            current_entry = entry
+            // Enter any new nodes at the parent's previous position
+            const nodeEnter = node.enter().append('g')
+                .attr('class', 'node')
+                .attr("transform", d => `translate(${{source.y0}},${{source.x0}})`)
+                .on('click', click);
+                
+            // Add Circle for the nodes
+            nodeEnter.append('circle')
+                .attr('r', 10)
+                .style("fill", d => d._children ? "lightsteelblue" : "#fff");
+                
+            // Add labels for the nodes
+            nodeEnter.append('text')
+                .attr("dy", ".35em")
+                .attr("x", d => d.children || d._children ? -13 : 13)
+                .attr("text-anchor", d => d.children || d._children ? "end" : "start")
+                .text(d => d.data.name);
+                
+            // UPDATE
+            const nodeUpdate = nodeEnter.merge(node);
             
-    def _identify_orphans(self) -> None:
-        """Identify orphaned documents that are not part of any TOC."""
-        all_docs = set(self.docs_map.keys())
-        referenced_docs = set(entry.target for entries in self.entries_by_file.values() for entry in entries)
-        self.orphaned_docs = list(all_docs - referenced_docs)
+            // Transition to the proper position for the node
+            nodeUpdate.transition()
+                .duration(750)
+                .attr("transform", d => `translate(${{d.y}},${{d.x}})`);
+                
+            // Update the node attributes and style
+            nodeUpdate.select('circle')
+                .attr('r', 10)
+                .style("fill", d => d._children ? "lightsteelblue" : "#fff")
+                .attr('cursor', 'pointer');
+                
+            // Remove any exiting nodes
+            const nodeExit = node.exit().transition()
+                .duration(750)
+                .attr("transform", d => `translate(${{source.y}},${{source.x}})`)
+                .remove();
+                
+            // On exit reduce the node circles size to 0
+            nodeExit.select('circle')
+                .attr('r', 1e-6);
+                
+            // On exit reduce the opacity of text labels
+            nodeExit.select('text')
+                .style('fill-opacity', 1e-6);
+                
+            // ****************** links section ***************************
+            
+            // Update the links...
+            const link = svg.selectAll('path.link')
+                .data(links, d => d.id);
+                
+            // Enter any new links at the parent's previous position
+            const linkEnter = link.enter().insert('path', "g")
+                .attr("class", "link")
+                .attr('d', d => {{
+                    const o = {{x: source.x0, y: source.y0}};
+                    return diagonal(o, o);
+                }});
+                
+            // UPDATE
+            const linkUpdate = linkEnter.merge(link);
+            
+            // Transition back to the parent element position
+            linkUpdate.transition()
+                .duration(750)
+                .attr('d', d => diagonal(d, d.parent));
+                
+            // Remove any exiting links
+            link.exit().transition()
+                .duration(750)
+                .attr('d', d => {{
+                    const o = {{x: source.x, y: source.y}};
+                    return diagonal(o, o);
+                }})
+                .remove();
+                
+            // Store the old positions for transition
+            nodes.forEach(d => {{
+                d.x0 = d.x;
+                d.y0 = d.y;
+            }});
+            
+            // Creates a curved (diagonal) path from parent to the child nodes
+            function diagonal(s, d) {{
+                return `M ${{s.y}} ${{s.x}}
+                        C ${{(s.y + d.y) / 2}} ${{s.x}},
+                          ${{(s.y + d.y) / 2}} ${{d.x}},
+                          ${{d.y}} ${{d.x}}`;
+            }}
+            
+            // Toggle children on click
+            function click(event, d) {{
+                if (d.children) {{
+                    d._children = d.children;
+                    d.children = null;
+                }} else {{
+                    d.children = d._children;
+                    d._children = null;
+                }}
+                update(d);
+            }}
+        }}
         
-    def _analyze_structure(self) -> None:
-        """Analyze the TOC structure and identify any issues."""
-        for entries in self.entries_by_file.values():
-            for entry in entries:
-                if not entry.children and entry.target not in self.docs_map:
-                    self.structural_issues.append({
-                        "type": "missing_target",
-                        "entry": entry
-                    })
-                    
-        for doc_id in self.orphaned_docs:
-            self.structural_issues.append({
-                "type": "orphaned_document",
-                "doc_id": doc_id
-            })
-            
-    def report(self) -> None:
-        """Generate a report of the TOC analysis."""
-        print("TOC Analysis Report")
-        print("===================")
-        print("\nMain TOC:")
-        for entry in self.main_toc:
-            print(f"- {entry.title} ({entry.target})")
-            
-        print("\nOrphaned Documents:")
-        for doc_id in self.orphaned_docs:
-            print(f"- {doc_id}")
-            
-        print("\nStructural Issues:")
-        for issue in self.structural_issues:
-            print(f"- {issue['type']}: {issue.get('entry') or issue.get('doc_id')}")
-            
-def analyze_toc(docs_dir: Union[str, Path] = None, generate_report: bool = False) -> Dict[str, Any]:
+        // Variable to track node IDs
+        let i = 0;
+    </script>
+</body>
+</html>
+"""
+
+
+def analyze_toc(docs_dir: Optional[Path] = None) -> Dict[str, Any]:
     """
-    Analyze TOC structure and identify issues with Eidosian precision.
+    Analyze the TOC structure of documentation with Eidosian precision.
     
     This function serves as the universal interface to the TOC analysis system,
-    identifying structural issues in documentation organization.
+    providing insights into the documentation structure quality and balance.
     
     Args:
-        docs_dir: Path to the documentation directory (auto-detected if None)
-        generate_report: Whether to generate a detailed analysis report
+        docs_dir: Documentation directory (auto-detected if None)
         
     Returns:
-        Dictionary with analysis results
+        Analysis results with metrics, recommendations and quality assessment
     """
     # Auto-detect docs directory if not provided
     if docs_dir is None:
-        # Try common locations
-        possible_dirs = [
-            Path("docs"),
-            Path("../docs"),
-            Path(__file__).resolve().parent.parent.parent / "docs"
-        ]
-        
-        for path in possible_dirs:
-            if path.is_dir():
-                docs_dir = path
-                break
-                
-        if docs_dir is None:
-            logger.error("❌ Documentation directory not specified and couldn't be auto-detected")
-            return {"error": "Documentation directory not found"}
+        try:
+            docs_dir = get_docs_dir()
+        except Exception as e:
+            logger.error(f"❌ Failed to auto-detect docs directory: {e}")
+            return {"error": str(e)}
     
     docs_dir = Path(docs_dir)
     
     if not docs_dir.is_dir():
-        logger.error(f"❌ Not a valid directory: {docs_dir}")
-        return {"error": f"Not a valid directory: {docs_dir}"}
+        logger.error(f"❌ Documentation directory not found or not a directory: {docs_dir}")
+        return {"error": f"Documentation directory not found: {docs_dir}"}
     
-    logger.info(f"🔍 Analyzing TOC structure in {docs_dir}")
-    
-    # Create analyzer and perform analysis
-    analyzer = TocAnalyzer(docs_dir)
-    
-    # Prepare results
-    results = {
-        "main_toc_entries": len(analyzer.main_toc),
-        "orphaned_documents": analyzer.orphaned_docs,
-        "structural_issues": [issue["type"] for issue in analyzer.structural_issues],
-        "issue_count": len(analyzer.structural_issues)
-    }
-    
-    # Generate detailed report if requested
-    if generate_report:
-        results["detailed_report"] = {
-            "toc_entries_by_file": {k: len(v) for k, v in analyzer.entries_by_file.items()},
-            "main_toc_structure": [{"title": e.title, "target": e.target} for e in analyzer.main_toc],
-            "issue_details": analyzer.structural_issues
-        }
-    
-    logger.info(f"✅ TOC analysis complete. Found {results['issue_count']} issues")
-    return results
+    try:
+        # Create analyzer and run analysis
+        analyzer = TocAnalyzer(docs_dir)
+        results = analyzer.analyze_toc_structure()
+        
+        # Generate visualization
+        visualization_path = analyzer.visualize_structure()
+        results["visualization"] = str(visualization_path)
+        
+        logger.info(f"✅ TOC analysis complete. Quality: {results['structure_quality']['quality_rating']}")
+        return results
+    except Exception as e:
+        logger.error(f"❌ TOC analysis failed: {e}")
+        import traceback
+        logger.debug(traceback.format_exc())
+        return {"error": str(e)}
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Analyze the TOC structure of documentation.")
-    parser.add_argument("docs_dir", type=Path, help="Root directory of the documentation")
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Analyze documentation TOC structure.")
+    parser.add_argument("docs_dir", nargs="?", type=Path, help="Documentation directory")
+    parser.add_argument("--output", "-o", type=Path, help="Output file for analysis results")
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
     args = parser.parse_args()
     
-    analyzer = TocAnalyzer(args.docs_dir)
-    analyzer.report()
+    results = analyze_toc(args.docs_dir)
+    
+    if args.json or args.output:
+        output_data = json.dumps(results, indent=2)
+        
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(output_data)
+            print(f"✅ Analysis results saved to {args.output}")
+        else:
+            print(output_data)
+    else:
+        print("\n📊 TOC Structure Analysis Results:")
+        print(f"Quality Rating: {results['structure_quality']['quality_rating']}")
+        print(f"Overall Score: {results['structure_quality']['overall_score']:.2f}/100")
+        
+        print("\n📏 Metrics:")
+        for key, value in results["metrics"].items():
+            if key != "section_sizes":
+                print(f"  {key}: {value}")
+        
+        print("\nSection Sizes:")
+        for section, size in results["metrics"]["section_sizes"].items():
+            print(f"  {section}: {size}")
+        
+        print("\n💡 Recommendations:")
+        if results["recommendations"]:
+            for rec in results["recommendations"]:
+                print(f"  • {rec}")
+        else:
+            print("  No recommendations - structure looks good!")
+        
+        print(f"\n🎨 Visualization saved to: {results['visualization']}")

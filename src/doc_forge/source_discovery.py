@@ -1,440 +1,346 @@
 #!/usr/bin/env python3
-# 🌀 Eidosian Documentation Discovery System
+# 🌀 Eidosian Source Discovery System
 """
-Source Discovery - Adaptive Documentation Architecture
+Source Discovery - Finding Documentation Sources with Eidosian Precision
 
-This module implements a universal discovery system for documentation sources,
-analyzing content from multiple formats and organizing it into a coherent
-structure with perfect precision and adaptability.
+This module discovers and catalogs documentation sources across the project,
+ensuring all content is properly identified, categorized, and related.
 
 Following Eidosian principles of:
-- Contextual Integrity: Documents connected by relationship, not location
-- Flow Like a River: Seamless integration of multiple sources
-- Structure as Control: Organization that reveals meaning
-- Self-Awareness: System adapts to content patterns
+- Contextual Integrity: Every document is precisely mapped
+- Structure as Control: Perfect organization of documentation
+- Exhaustive But Concise: Complete discovery without waste
 """
 
 import os
-import sys
 import re
+import sys
 import logging
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional, Any, Union
-import yaml
-import json
-from dataclasses import dataclass, field
-from datetime import datetime
-import ast
+from collections import defaultdict
+from typing import Dict, List, Set, Tuple, Optional, Any
 
-# 📊 Structured Logging - Self-Awareness Foundation
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("eidosian_docs.discovery")
+# Import project-wide information
+from .global_info import get_doc_structure, get_paths
+from .utils.paths import get_repo_root, get_docs_dir
 
-@dataclass
+# 📊 Self-aware logging system
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+)
+logger = logging.getLogger("doc_forge.source_discovery")
+
 class DocumentMetadata:
-    """
-    Metadata extracted from document content with recursive refinement.
-    Each document tells a story - we just need to listen carefully! 📚
-    """
-    path: Path  # 🛣️ Where to find this document
-    title: str = ""  # 📝 What this document calls itself
-    category: str = "uncategorized"  # 🏷️ How we classify this content
-    tags: List[str] = field(default_factory=list)  # 🏷️ Specialized markers
-    priority: int = 50  # 🔢 Importance (higher = more important)
-    date: Optional[datetime] = None  # 📅 When this document was born
-    summary: str = ""  # 💬 TL;DR version
-    related: List[str] = field(default_factory=list)  # 🔗 Connected documents
+    """Metadata for a discovered document with perfect structural awareness."""
     
-    # Document format and processing info
-    format: str = ""  # 📄 md, rst, py, etc.
-    has_frontmatter: bool = False  # 🎭 YAML/metadata at the top?
-    is_api_doc: bool = False  # 🧩 Is this API documentation?
-    toc_depth: int = 2  # 📑 How deep should the TOC go?
-    
-    def extract_from_content(self, content: str) -> None:
+    def __init__(self, path: Path, title: str = "", category: str = "", section: str = "", priority: int = 50):
         """
-        Extract metadata from document content using pattern recognition.
-        Like a detective reading between the lines! 🕵️
-        """
-        # Format detection - what kind of document are we dealing with?
-        self.format = self.path.suffix.lstrip('.').lower()
+        Initialize document metadata.
         
-        # Title extraction strategies by format
-        if self.format == 'md':
-            # Look for markdown title patterns - the headline act!
-            title_match = re.search(r'^# (.*?)$', content, re.MULTILINE)
-            if title_match:
-                self.title = title_match.group(1).strip()
+        Args:
+            path: Path to the document
+            title: Document title
+            category: Document category
+            section: Document section
+            priority: Document priority (0-100, lower is higher priority)
+        """
+        self.path = path
+        self.title = title or path.stem.replace("_", " ").title()
+        self.category = category
+        self.section = section
+        self.priority = priority
+        self.url = str(path.with_suffix(".html")).replace("\\", "/")
+        self.references: Set[str] = set()
+        self.is_index = path.stem.lower() == "index"
+        
+        # Extract additional metadata from content
+        self._extract_metadata()
+    
+    def _extract_metadata(self) -> None:
+        """Extract metadata from document content with Eidosian precision."""
+        if not self.path.exists():
+            return
             
-            # Check for YAML frontmatter - the hidden treasure
-            frontmatter_match = re.search(r'^---\s*(.*?)\s*---', content, re.DOTALL)
-            if frontmatter_match:
-                self.has_frontmatter = True
-                try:
-                    frontmatter = yaml.safe_load(frontmatter_match.group(1))
-                    # Update metadata from frontmatter - trust the author's intent
-                    if isinstance(frontmatter, dict):
-                        if 'title' in frontmatter:
-                            self.title = frontmatter['title']
-                        if 'category' in frontmatter:
-                            self.category = frontmatter['category']
-                        if 'tags' in frontmatter:
-                            self.tags = frontmatter['tags']
-                        if 'priority' in frontmatter:
-                            self.priority = int(frontmatter['priority'])
-                        if 'date' in frontmatter:
-                            self.date = frontmatter['date']
-                        if 'summary' in frontmatter:
-                            self.summary = frontmatter['summary']
-                except Exception as e:
-                    logger.warning(f"📛 Error parsing frontmatter in {self.path}: {e}")
-        
-        elif self.format == 'rst':
-            # Look for RST title patterns
-            title_match = re.search(r'^(.*?)\n[=]+\s*$', content, re.MULTILINE)
-            if title_match:
-                self.title = title_match.group(1).strip()
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                content = f.read()
                 
-            # Extract directive metadata
-            meta_matches = re.findall(r'^\.\. ([a-z]+):: (.*)$', content, re.MULTILINE)
-            for directive, value in meta_matches:
-                if directive == 'category':
-                    self.category = value.strip()
-                elif directive == 'tags':
-                    self.tags = [t.strip() for t in value.split(',')]
-                elif directive == 'priority':
-                    try:
-                        self.priority = int(value.strip())
-                    except ValueError:
-                        pass
-        
-        elif self.format == 'py':
-            # Check if it's an API doc
-            self.is_api_doc = True
+            # Extract title
+            if self.path.suffix == ".md":
+                # Markdown title
+                title_match = re.search(r'^#\s+(.*?)$', content, re.MULTILINE)
+                if title_match:
+                    self.title = title_match.group(1).strip()
+            elif self.path.suffix == ".rst":
+                # RST title
+                title_match = re.search(r'^(.*?)\n[=]+\s*$', content, re.MULTILINE)
+                if title_match:
+                    self.title = title_match.group(1).strip()
             
-            # Extract module or class name as title
-            module_match = re.search(r'^class\s+([A-Za-z0-9_]+)', content, re.MULTILINE)
-            if module_match:
-                self.title = module_match.group(1)
-            else:
-                # Try to get module name
-                module_match = re.search(r'"""(.*?)"""', content, re.DOTALL)
-                if module_match:
-                    docstring = module_match.group(1).strip()
-                    first_line = docstring.split('\n')[0].strip()
-                    self.title = first_line
-                    
-                    # Try to extract summary from docstring
-                    if len(docstring.split('\n')) > 1:
-                        self.summary = '\n'.join(docstring.split('\n')[1:3]).strip()
-        
-        # Use filename as fallback title - when all else fails
-        if not self.title:
-            self.title = self.path.stem.replace('_', ' ').title()
-            
-        # Capitalize first letter of title - proper etiquette!
-        if self.title:
-            self.title = self.title[0].upper() + self.title[1:]
+            # Extract references to other documents
+            if self.path.suffix == ".md":
+                # Markdown links
+                md_links = re.finditer(r'\[.*?\]\((.*?)\)', content)
+                for match in md_links:
+                    link = match.group(1).strip()
+                    if not link.startswith(("http:", "https:", "#")):
+                        self.references.add(link)
+            elif self.path.suffix == ".rst":
+                # RST links
+                rst_links = re.finditer(r':doc:`(.*?)`', content)
+                for match in rst_links:
+                    link = match.group(1).strip()
+                    self.references.add(link)
+        except Exception as e:
+            logger.warning(f"⚠️ Error extracting metadata from {self.path}: {e}")
     
-    @property
-    def url(self) -> str:
-        """Generate the URL for this document."""
-        if self.is_api_doc:
-            # API docs have a special URL format
-            relative_path = self.path.relative_to(self.path.parent)
-            module_path = str(relative_path).replace('/', '.').replace('.py', '')
-            return f"autoapi/{module_path}/index.html"
-        
-        # Regular docs just use the path relative to docs
-        return str(self.path).replace('.md', '.html').replace('.rst', '.html')
-
+    def __repr__(self) -> str:
+        """String representation with Eidosian clarity."""
+        return f"DocumentMetadata(title='{self.title}', path='{self.path}', category='{self.category}')"
 
 class DocumentationDiscovery:
     """
-    Universal documentation discovery system implementing Eidosian principles.
+    Documentation discovery system with Eidosian precision.
     
-    This class discovers, categorizes, and organizes documentation from multiple
-    sources into a coherent structure that adapts to the content patterns.
+    Discovers, categorizes, and relates documentation across the project.
     """
     
-    def __init__(self, repo_root: Path):
-        self.repo_root = repo_root
-        self.docs_dir = repo_root / 'docs'
-        self.categories = {}
-        self.tracked_documents: Set[str] = set()  # Track documents to avoid duplicates
-        self.orphaned_documents: List[Path] = []  # Track orphaned documents
-        
-    def discover_all_documents(self) -> Dict[str, List[DocumentMetadata]]:
+    def __init__(self, repo_root: Optional[Path] = None, docs_dir: Optional[Path] = None):
         """
-        Discover all documentation sources and organize them into categories.
-        Returns a dictionary of category -> document list.
+        Initialize the documentation discovery system.
+        
+        Args:
+            repo_root: Repository root directory (auto-detected if None)
+            docs_dir: Documentation directory (auto-detected if None)
         """
-        # Start from conf.py's DOC_MAPPING configuration
-        documents = {}
+        self.repo_root = repo_root or get_repo_root()
+        self.docs_dir = docs_dir or get_docs_dir()
+        self.doc_structure = get_doc_structure(self.repo_root)
         
-        # Get conf.py location
-        conf_path = self.docs_dir / 'conf.py'
-        if not conf_path.exists():
-            logger.warning(f"conf.py not found at {conf_path}")
-            return documents
-        
-        # Parse conf.py to extract DOC_MAPPING
-        with open(conf_path, 'r') as f:
-            conf_content = f.read()
-            
-        # Check if using DOC_MAPPING (new style) or DOC_SOURCES (old style)
-        doc_mapping_match = re.search(r'DOC_MAPPING\s*=\s*{', conf_content, re.DOTALL)
-        doc_sources_match = re.search(r'DOC_SOURCES\s*=\s*{', conf_content, re.DOTALL)
-        
-        if doc_mapping_match:
-            # Process DOC_MAPPING structure
-            for category in ['core_docs', 'api_docs', 'features', 'guides', 'getting_started']:
-                logger.info(f"Processing category: {category}")
-                
-                # Extract paths from DOC_MAPPING items that belong to this section
-                pattern = rf'"section":\s*"{category}".*?"path":\s*.*?/\s*"([^"]*)"'
-                path_matches = re.finditer(pattern, conf_content, re.DOTALL)
-                
-                for path_match in path_matches:
-                    rel_path = path_match.group(1).strip('"')
-                    source_path = self.repo_root / rel_path
-                    
-                    # Extract patterns 
-                    patterns_match = re.search(rf'"patterns":\s*\[(.*?)\]', conf_content)
-                    patterns = ["*.md", "*.rst", "*.py"]  # Default patterns
-                    
-                    if patterns_match:
-                        patterns_str = patterns_match.group(1)
-                        extracted_patterns = [p.strip(' "\'') for p in patterns_str.split(',')]
-                        if extracted_patterns:
-                            patterns = extracted_patterns
-                    
-                    # Process this path
-                    doc_list = self._discover_in_path(source_path, patterns, category)
-                    if doc_list:
-                        if category not in documents:
-                            documents[category] = []
-                        documents[category].extend(doc_list)
-                        
-        elif doc_sources_match:
-            # Fall back to legacy DOC_SOURCES format
-            # Extract DOC_SOURCES dictionary
-            for category in ['core', 'api', 'examples', 'user_generated']:
-                logger.info(f"Processing category: {category}")
-                # Find the category in conf_content
-                category_match = re.search(rf'"{category}":\s*{{(.*?)}},', conf_content, re.DOTALL)
-                if category_match:
-                    category_config = category_match.group(1)
-                    
-                    # Extract path
-                    path_match = re.search(r'"path":\s*REPO_ROOT\s*/\s*"([^"]*)"', category_config)
-                    if not path_match and 'REPO_ROOT / "' not in category_config:
-                        path_match = re.search(r'"path":\s*REPO_ROOT\s*/\s*([^,}]+)', category_config)
-                        
-                    if path_match:
-                        rel_path = path_match.group(1).strip('"')
-                        source_path = self.repo_root / rel_path
-                        
-                        # Extract patterns
-                        patterns_match = re.search(r'"patterns":\s*\[(.*?)\]', category_config)
-                        if patterns_match:
-                            patterns_str = patterns_match.group(1)
-                            patterns = [p.strip(' "\'') for p in patterns_str.split(',')]
-                            
-                            # Map old categories to new ones
-                            mapped_category = {
-                                'core': 'core_docs',
-                                'api': 'api_docs',
-                                'examples': 'guides',
-                                'user_generated': 'features'
-                            }.get(category, category)
-                            
-                            # Process this category
-                            doc_list = self._discover_in_path(source_path, patterns, mapped_category)
-                            if doc_list:
-                                if mapped_category not in documents:
-                                    documents[mapped_category] = []
-                                documents[mapped_category].extend(doc_list)
-        else:
-            logger.warning("Neither DOC_MAPPING nor DOC_SOURCES found in conf.py")
-        
-        # Find orphaned documents in the docs directory
-        self._find_orphaned_documents()
-        
-        return documents
+        # Track discovered documents - the map of all knowledge
+        self.documents: Dict[str, List[DocumentMetadata]] = defaultdict(list)
+        self.orphaned_documents: List[Path] = []
+        self.tracked_documents: Set[str] = set()
     
-    def _discover_in_path(self, path: Path, patterns: List[str], category: str) -> List[DocumentMetadata]:
-        """Discover documents in a specific path matching the given patterns."""
-        if not path.exists():
-            logger.warning(f"Path does not exist: {path}")
-            return []
-            
-        documents = []
-        for pattern in patterns:
-            for file_path in path.glob(f"**/{pattern}"):
-                try:
-                    # Skip if in excluded directories
-                    if any(p.startswith('_') for p in file_path.parts):
+    def discover_all(self) -> Dict[str, List[DocumentMetadata]]:
+        """
+        Discover all documentation files with Eidosian thoroughness.
+        
+        Returns:
+            Dictionary mapping categories to lists of document metadata
+        """
+        self.documents.clear()
+        self.orphaned_documents.clear()
+        self.tracked_documents.clear()
+        
+        # Start with user documentation - hand-crafted wisdom
+        self._discover_user_docs()
+        
+        # Then auto-generated documentation - machine precision
+        self._discover_auto_docs()
+        
+        # Finally, AI-generated documentation - synthetic intelligence
+        self._discover_ai_docs()
+        
+        # Identify orphaned documents - lost souls seeking purpose
+        self._identify_orphans()
+        
+        return self.documents
+    
+    def _discover_user_docs(self) -> None:
+        """Discover user documentation with perfect precision."""
+        user_docs_dir = self.doc_structure.get("user_docs", self.docs_dir / "user_docs")
+        
+        if not user_docs_dir.exists():
+            logger.warning(f"⚠️ User documentation directory not found at {user_docs_dir}")
+            return
+        
+        # Process each section of user documentation
+        for section in os.listdir(user_docs_dir):
+            section_dir = user_docs_dir / section
+            if not section_dir.is_dir():
+                continue
+                
+            # Process all markdown and RST files in this section
+            for ext in [".md", ".rst"]:
+                for file_path in section_dir.glob(f"**/*{ext}"):
+                    # Skip files in underscore directories
+                    if any(p.startswith("_") for p in file_path.parts):
                         continue
-                    
-                    # Read file content
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    
+                        
                     # Create document metadata
-                    metadata = DocumentMetadata(path=file_path)
-                    metadata.extract_from_content(content)
-                    metadata.category = category
+                    doc = DocumentMetadata(
+                        path=file_path,
+                        category="user",
+                        section=section,
+                        priority=30 if file_path.stem.lower() == "index" else 50
+                    )
                     
-                    documents.append(metadata)
-                except Exception as e:
-                    logger.error(f"Error processing {file_path}: {e}")
-        
-        return documents
+                    self.documents["user"].append(doc)
+                    
+        logger.info(f"📚 Discovered {len(self.documents['user'])} user documentation files")
     
-    def _find_orphaned_documents(self) -> None:
-        """Find documents in the docs directory that might be orphaned."""
-        # Common documentation file patterns
-        patterns = ["*.md", "*.rst", "*.txt"]
-        excluded_dirs = ["_build", "_static", "_templates", "__pycache__"]
+    def _discover_auto_docs(self) -> None:
+        """Discover auto-generated documentation with systematic precision."""
+        auto_docs_dir = self.doc_structure.get("auto_docs", self.docs_dir / "auto_docs")
         
-        for pattern in patterns:
-            for file_path in self.docs_dir.glob(f"**/{pattern}"):
-                # Skip files in excluded directories
-                if any(excluded in str(file_path) for excluded in excluded_dirs):
-                    continue
+        if not auto_docs_dir.exists():
+            logger.warning(f"⚠️ Auto-generated documentation directory not found at {auto_docs_dir}")
+            return
+        
+        # Check for common auto-doc directories
+        autodoc_dirs = [
+            auto_docs_dir / "api",
+            auto_docs_dir / "introspected",
+            auto_docs_dir / "extracted",
+            self.docs_dir / "autoapi",  # Common AutoAPI output location
+        ]
+        
+        for section_dir in autodoc_dirs:
+            if not section_dir.exists():
+                continue
                 
-                # Add to orphaned documents list for later processing
-                rel_path = file_path.relative_to(self.docs_dir)
-                self.orphaned_documents.append(file_path)
-
-    def integrate_with_manifest(self) -> None:
-        """
-        Integrate discovery results with the manifest system.
-        Creates a connection between discovery and the manifest for Living Docs.
-        """
-        manifest_path = self.docs_dir / "docs_manifest.json"
-        if not manifest_path.exists():
-            logger.warning("Manifest file not found, creating new one")
-            manifest = {
-                "version": "1.0.0",
-                "project_name": "Doc Forge",
-                "documentation_categories": {},
-                "metadata": {
-                    "last_updated": datetime.now().isoformat(),
-                    "validation_status": {
-                        "orphaned_docs": [str(p.relative_to(self.docs_dir)) for p in self.orphaned_documents]
-                    },
-                    "doc_metrics": {
-                        "total_files": len(self.tracked_documents) + len(self.orphaned_documents),
-                        "manual_files": len([d for d in self.tracked_documents if not d.endswith('.py')]),
-                        "auto_files": len([d for d in self.tracked_documents if d.endswith('.py')]),
-                        "coverage_percentage": 0
-                    }
-                },
-                "living_docs": {
-                    "enabled": True,
-                    "validation_frequency": "daily",
-                    "update_policy": "suggest"
-                }
-            }
-        else:
-            # Load existing manifest
-            try:
-                with open(manifest_path, 'r', encoding='utf-8') as f:
-                    manifest = json.load(f)
+            section = section_dir.name
+            
+            # Process all markdown and RST files in this section
+            for ext in [".md", ".rst"]:
+                for file_path in section_dir.glob(f"**/*{ext}"):
+                    # Skip files in underscore directories
+                    if any(p.startswith("_") for p in file_path.parts):
+                        continue
+                        
+                    # Create document metadata
+                    doc = DocumentMetadata(
+                        path=file_path,
+                        category="auto",
+                        section=section,
+                        priority=70  # Auto docs are typically lower priority in navigation
+                    )
                     
-                # Update the manifest with discovery results
-                if "metadata" not in manifest:
-                    manifest["metadata"] = {}
-                
-                if "validation_status" not in manifest["metadata"]:
-                    manifest["metadata"]["validation_status"] = {}
-                
-                manifest["metadata"]["validation_status"]["orphaned_docs"] = [
-                    str(p.relative_to(self.docs_dir)) for p in self.orphaned_documents
-                ]
-                
-                if "doc_metrics" not in manifest["metadata"]:
-                    manifest["metadata"]["doc_metrics"] = {}
-                
-                manifest["metadata"]["doc_metrics"].update({
-                    "total_files": len(self.tracked_documents) + len(self.orphaned_documents),
-                    "manual_files": len([d for d in self.tracked_documents if not d.endswith('.py')]),
-                    "auto_files": len([d for d in self.tracked_documents if d.endswith('.py')]),
-                })
-                
-            except Exception as e:
-                logger.error(f"Error updating manifest: {e}")
-                return
+                    self.documents["auto"].append(doc)
+                    
+        logger.info(f"🤖 Discovered {len(self.documents['auto'])} auto-generated documentation files")
+    
+    def _discover_ai_docs(self) -> None:
+        """Discover AI-generated documentation with intelligent precision."""
+        ai_docs_dir = self.doc_structure.get("ai_docs", self.docs_dir / "ai_docs")
         
-        # Save the updated manifest
-        try:
-            with open(manifest_path, 'w', encoding='utf-8') as f:
-                json.dump(manifest, f, indent=4)
-            logger.info(f"Updated manifest at {manifest_path}")
-        except Exception as e:
-            logger.error(f"Error saving manifest: {e}")
-
+        if not ai_docs_dir.exists():
+            logger.debug(f"AI documentation directory not found at {ai_docs_dir}")
+            return
+        
+        # Process each section of AI documentation
+        for section in os.listdir(ai_docs_dir):
+            section_dir = ai_docs_dir / section
+            if not section_dir.is_dir():
+                continue
+                
+            # Process all markdown and RST files in this section
+            for ext in [".md", ".rst"]:
+                for file_path in section_dir.glob(f"**/*{ext}"):
+                    # Skip files in underscore directories
+                    if any(p.startswith("_") for p in file_path.parts):
+                        continue
+                        
+                    # Create document metadata
+                    doc = DocumentMetadata(
+                        path=file_path,
+                        category="ai",
+                        section=section,
+                        priority=60  # AI docs are medium priority in navigation
+                    )
+                    
+                    self.documents["ai"].append(doc)
+                    
+        logger.info(f"🧠 Discovered {len(self.documents['ai'])} AI-generated documentation files")
+    
+    def _identify_orphans(self) -> None:
+        """
+        Identify orphaned documentation files with compassionate precision.
+        Orphaned files are those not properly placed in the structure.
+        """
+        # Find all markdown and RST files in docs directory
+        all_docs = []
+        for ext in [".md", ".rst"]:
+            all_docs.extend(self.docs_dir.glob(f"**/*{ext}"))
+        
+        # Skip files in structure directories and underscore directories
+        structure_dirs = {str(path) for path in self.doc_structure.values() if isinstance(path, Path)}
+        
+        for file_path in all_docs:
+            # Skip files in underscore directories
+            if any(p.startswith("_") for p in file_path.parts):
+                continue
+                
+            # Check if this file is in a valid structure directory
+            in_structure = False
+            for dir_path in structure_dirs:
+                if str(file_path).startswith(dir_path):
+                    in_structure = True
+                    break
+            
+            if not in_structure:
+                self.orphaned_documents.append(file_path)
+                
+        logger.info(f"🏝️ Found {len(self.orphaned_documents)} orphaned documentation files")
+    
     def generate_toc_structure(self, documents: Dict[str, List[DocumentMetadata]]) -> Dict:
         """
-        Generate a Table of Contents structure from the discovered documents.
-        This can be used to build the sidebar and navigation.
+        Generate a table of contents structure based on discovered documents.
+        
+        Args:
+            documents: Dictionary mapping categories to lists of document metadata
+            
+        Returns:
+            Table of contents structure dictionary
         """
+        # Initialize TOC structure
         toc = {
             "getting_started": {
-                "caption": "📚 Getting Started",
+                "title": "Getting Started",
                 "items": []
             },
-            "core_docs": {
-                "caption": "🛠️ Core Documentation", 
+            "user_guide": {
+                "title": "User Guide",
                 "items": []
             },
-            "features": {
-                "caption": "🔄 Features & Capabilities",
+            "concepts": {
+                "title": "Concepts",
                 "items": []
             },
-            "guides": {
-                "caption": "🧠 Guides & References",
-                "items": []
-            },
-            "api_docs": {
-                "caption": "🧩 API Endpoints",
+            "reference": {
+                "title": "API Reference",
                 "items": []
             },
             "examples": {
-                "caption": "📋 Examples",
+                "title": "Examples",
+                "items": []
+            },
+            "advanced": {
+                "title": "Advanced Topics",
                 "items": []
             }
         }
         
-        # Create a set to track added documents to avoid duplication
-        self.tracked_documents = set()
+        # Map sections to TOC sections
+        section_mapping = {
+            "getting_started": "getting_started",
+            "guides": "user_guide",
+            "concepts": "concepts",
+            "reference": "reference",
+            "api": "reference",
+            "examples": "examples",
+            "advanced": "advanced",
+            "faq": "user_guide",
+        }
         
-        # Map documents to TOC sections based on category and content
+        # Process discovered documents and add to TOC
         for category, docs in documents.items():
             for doc in docs:
-                # Skip if the same document has already been added (by URL)
-                if doc.url in self.tracked_documents:
-                    continue
-                    
-                # Determine which section this document belongs in
-                target_section = category  # Default to document's own category
+                # Determine target section
+                target_section = section_mapping.get(doc.section, "reference")
                 
-                # Override based on content analysis
-                if doc.category == 'getting_started' or category == 'core_docs' and 'introduction' in doc.title.lower():
-                    target_section = "getting_started"
-                elif category == 'api_docs' or doc.is_api_doc:
-                    target_section = "api_docs"
-                elif "feature" in doc.tags or "capability" in doc.tags:
-                    target_section = "features"
-                elif "guide" in doc.tags or "reference" in doc.tags or "example" in doc.tags:
-                    target_section = "guides"
-                
-                # Make sure the section exists in our TOC
-                if target_section not in toc:
-                    target_section = "core_docs"  # Default fallback
-                    
                 # Add to the appropriate section
                 toc[target_section]["items"].append({
                     "title": doc.title,
@@ -464,376 +370,302 @@ class DocumentationDiscovery:
         return toc
     
     def _place_orphaned_documents(self, toc: Dict) -> None:
-        """Place orphaned documents into the appropriate toc sections based on their content."""
-        for orphan in self.orphaned_documents[:]:
-            try:
-                # Skip if it's a special file that shouldn't be included
-                if orphan.name == 'requirements.txt':
-                    continue
-                    
-                # Read the orphan file
-                with open(orphan, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                # Create a stripped relative URL for comparison
-                rel_url = str(orphan.relative_to(self.docs_dir)).replace('.md', '.html').replace('.rst', '.html')
-                
-                # Skip if already in tracked documents
-                if rel_url in self.tracked_documents:
-                    continue
-                
-                # Extract title from content
-                title = orphan.stem.replace('_', ' ').title()
-                title_match = re.search(r'^# (.*?)$', content, re.MULTILINE)
-                if title_match:
-                    title = title_match.group(1)
-                
-                # Determine appropriate section
-                section_key = "guides"  # Default to guides
-                
-                # Check content to determine best section
-                if 'principle' in content.lower() or 'eidosian' in content.lower():
-                    section_key = "getting_started"
-                elif 'api' in content.lower() or 'endpoint' in content.lower():
-                    section_key = "api_docs"
-                elif 'feature' in content.lower() or 'capability' in content.lower():
-                    section_key = "features"
-                elif 'installation' in content.lower() or 'setup' in content.lower() or 'intro' in content.lower():
-                    section_key = "getting_started"
-                
-                # Add to appropriate section
-                toc[section_key]["items"].append({
-                    "title": title,
-                    "url": rel_url,
-                    "priority": 99  # Lower priority for orphaned docs
-                })
-                
-                # Mark as tracked
-                self.tracked_documents.add(rel_url)
-                logger.info(f"Placed orphaned document {orphan.name} in {section_key}")
-                
-            except Exception as e:
-                logger.warning(f"Error processing orphaned document {orphan}: {e}")
-    
-    def generate_sphinx_toctree(self, toc_structure: Dict) -> Dict[str, str]:
         """
-        Generate Sphinx toctree directives from the TOC structure.
-        Returns a dictionary mapping section names to toctree strings.
-        """
-        toctrees = {}
-        tracked_urls = set()  # Ensure no duplicates across sections
+        Place orphaned documents into the appropriate toc sections based on their content.
         
-        for section_name, section_data in toc_structure.items():
-            toctree = f"""
-.. toctree::
-   :maxdepth: 2
-   :caption: {section_data['caption']}
-
-"""
-            items_added = False
-            
-            for item in section_data["items"]:
-                # Remove .html extension and convert to relative path
-                url = item["url"].replace('.html', '')
-                
-                # Skip if this URL has already been added to another toctree
-                if url in tracked_urls:
-                    continue
-                    
-                toctree += f"   {url}\n"
-                tracked_urls.add(url)
-                items_added = True
-            
-            # Only add toctree if it has items
-            if items_added:
-                toctrees[section_name] = toctree
-            
-        return toctrees
-    
-    def write_index_with_toctrees(self, toctrees: Dict[str, str]) -> None:
+        Args:
+            toc: Table of contents structure to update
         """
-        Write the index.rst file with the generated toctrees.
-        """
-        index_path = self.docs_dir / "index.rst"
+        # Patterns to match document content with sections
+        section_patterns = {
+            "getting_started": ["installation", "quickstart", "setup", "introduction"],
+            "user_guide": ["guide", "how to", "usage", "tutorial"],
+            "concepts": ["concept", "architecture", "design", "principles"],
+            "reference": ["api", "reference", "class", "function"],
+            "examples": ["example", "sample", "demo"],
+            "advanced": ["advanced", "expert", "internals", "deep dive"]
+        }
         
-        # Read existing index to preserve content
-        existing_content = ""
-        if index_path.exists():
-            with open(index_path, "r") as f:
-                existing_content = f.read()
-                
-            # Extract the part before the toctrees
-            intro_match = re.search(r'^(.*?)\.\.(?:\s+toctree::|$)', existing_content, re.DOTALL)
-            if intro_match:
-                existing_content = intro_match.group(1).strip()
-                
-        # Create new index content
-        index_content = f"""{existing_content}
-
-{toctrees.get("getting_started", "")}
-
-{toctrees.get("core_docs", "")}
-
-{toctrees.get("features", "")}
-
-{toctrees.get("guides", "")}
-
-{toctrees.get("api_docs", "")}
-"""
-        
-        # Write the file
-        with open(index_path, "w") as f:
-            f.write(index_content)
-            
-        logger.info(f"✅ Updated index at {index_path}")
-
-    def mark_orphaned_documents(self) -> None:
-        """Add :orphan: directive to remaining orphaned documents."""
         for orphan in self.orphaned_documents:
+            # Skip if not a file or doesn't exist
+            if not orphan.is_file() or not orphan.exists():
+                continue
+                
+            # Create a default URL for the orphan
+            orphan_url = str(orphan.relative_to(self.docs_dir)).replace('.md', '.html').replace('.rst', '.html')
+            
+            # Try to determine the best section based on filename and content
+            best_section = None
+            best_score = 0
+            
+            # Check filename first
+            filename_lower = orphan.stem.lower()
+            for section, patterns in section_patterns.items():
+                for pattern in patterns:
+                    if pattern in filename_lower:
+                        if best_section is None:
+                            best_section = section
+                            best_score = 1
+                        elif best_score < 2:  # Only override if we have a stronger match
+                            best_section = section
+                            best_score = 2
+            
+            # If no good match in filename, check content
+            if best_score < 2:
+                try:
+                    with open(orphan, "r", encoding="utf-8") as f:
+                        content = f.read().lower()
+                        
+                    for section, patterns in section_patterns.items():
+                        section_score = sum(content.count(pattern) for pattern in patterns)
+                        if section_score > best_score:
+                            best_section = section
+                            best_score = section_score
+                except Exception:
+                    pass  # If we can't read the file, use best guess so far
+            
+            # Default to reference if we couldn't determine a section
+            if best_section is None:
+                best_section = "reference"
+                
+            # Create a title from the filename if needed
+            title = orphan.stem.replace("_", " ").title()
+            
+            # Try to extract a better title from the content
             try:
-                # Skip certain files that don't need the orphan directive
-                if orphan.suffix not in ['.md', '.rst']:
-                    continue
+                with open(orphan, "r", encoding="utf-8") as f:
+                    content_lines = f.readlines()
                     
-                # Read file content
-                with open(orphan, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                if orphan.suffix == ".md":
+                    # Look for markdown title
+                    for line in content_lines:
+                        if line.startswith("# "):
+                            title = line[2:].strip()
+                            break
+                elif orphan.suffix == ".rst":
+                    # Look for RST title
+                    for i, line in enumerate(content_lines):
+                        if i > 0 and "===" in line and content_lines[i-1].strip():
+                            title = content_lines[i-1].strip()
+                            break
+            except Exception:
+                pass  # Use filename-based title if extraction fails
                 
-                # Check if file already has orphan directive
-                if ':orphan:' in content:
-                    continue
-                    
-                # Add orphan directive
-                if orphan.suffix == '.md':
-                    # For Markdown, add as a comment at the top
-                    new_content = f"<!-- :orphan: -->\n\n{content}"
-                else:
-                    # For RST, add as directive
-                    new_content = f":orphan:\n\n{content}"
-                    
-                # Write updated content
-                with open(orphan, 'w', encoding='utf-8') as f:
-                    f.write(new_content)
-                    
-                logger.info(f"✅ Added orphan directive to {orphan.name}")
-                
-            except Exception as e:
-                logger.warning(f"Error marking orphan document {orphan}: {e}")
-
-def discover_code_structures(root_dir: Path):
-    """
-    Recursively scan for Python files and parse their AST for detailed code structures.
+            # Add to the appropriate section
+            toc[best_section]["items"].append({
+                "title": title,
+                "url": orphan_url,
+                "priority": 90  # Orphaned docs get lowest priority
+            })
+            
+            # Mark this document as tracked
+            self.tracked_documents.add(orphan_url)
     
-    Performs comprehensive analysis extracting:
-    - Modules, classes, and functions
-    - Parameters and return types
-    - Docstring information
-    - Code complexity metrics
-    - Relationships between components
+    def find_all_sources(self) -> Dict[str, List[Path]]:
+        """
+        Find all documentation sources across the project.
+        
+        Returns:
+            Dictionary mapping categories to lists of file paths
+        """
+        all_sources = {
+            "user": [],
+            "auto": [],
+            "ai": []
+        }
+        
+        # Find user documentation
+        user_docs_dir = self.doc_structure.get("user_docs", self.docs_dir / "user_docs")
+        if user_docs_dir.exists():
+            for ext in [".md", ".rst"]:
+                all_sources["user"].extend(
+                    [p for p in user_docs_dir.glob(f"**/*{ext}") 
+                     if not any(part.startswith("_") for part in p.parts)]
+                )
+        
+        # Find auto-generated documentation
+        auto_docs_dir = self.doc_structure.get("auto_docs", self.docs_dir / "auto_docs")
+        autoapi_dir = self.docs_dir / "autoapi"
+        
+        for directory in [auto_docs_dir, autoapi_dir]:
+            if directory.exists():
+                for ext in [".md", ".rst"]:
+                    all_sources["auto"].extend(
+                        [p for p in directory.glob(f"**/*{ext}") 
+                        if not any(part.startswith("_") for part in p.parts)]
+                    )
+        
+        # Find AI-generated documentation
+        ai_docs_dir = self.doc_structure.get("ai_docs", self.docs_dir / "ai_docs")
+        if ai_docs_dir.exists():
+            for ext in [".md", ".rst"]:
+                all_sources["ai"].extend(
+                    [p for p in ai_docs_dir.glob(f"**/*{ext}") 
+                     if not any(part.startswith("_") for part in p.parts)]
+                )
+        
+        return all_sources
+    
+    def resolve_references(self) -> Dict[str, Set[str]]:
+        """
+        Resolve references between documentation files.
+        
+        Returns:
+            Dictionary mapping document paths to sets of referenced documents
+        """
+        reference_map = {}
+        
+        # Process all discovered documents
+        for category, docs in self.documents.items():
+            for doc in docs:
+                if doc.references:
+                    reference_map[str(doc.path)] = doc.references
+        
+        return reference_map
+
+
+def discover_documentation(docs_dir: Optional[Path] = None) -> Dict[str, List[DocumentMetadata]]:
+    """
+    Discover documentation files across the project with Eidosian precision.
+    
+    This function serves as the universal interface to the discovery system,
+    finding all documentation files and their relationships.
     
     Args:
-        root_dir: Root directory to scan for Python files
+        docs_dir: Documentation directory (auto-detected if None)
         
     Returns:
-        List of dictionaries describing discovered items with detailed metadata
+        Dictionary mapping categories to lists of document metadata
     """
-    results = []
-    module_cache = {}
+    # Auto-detect docs directory if not provided
+    if docs_dir is None:
+        docs_dir = get_docs_dir()
     
-    # Helper function for complexity calculation
-    def calculate_complexity(node):
-        complexity = 1  # Base complexity
-        # Count branches (if/else statements, loops)
-        branches = sum(1 for n in ast.walk(node) if isinstance(n, (ast.If, ast.For, ast.While)))
-        # Count function calls
-        calls = sum(1 for n in ast.walk(node) if isinstance(n, ast.Call))
-        # Adjust complexity based on these factors
-        return complexity + branches + (calls // 5)
+    logger.info(f"🔍 Discovering documentation in {docs_dir}")
     
-    # Helper to extract docstring
-    def extract_docstring(node):
-        docstring = ast.get_docstring(node)
-        has_docstring = docstring is not None
-        docstring_summary = docstring.split("\n")[0] if docstring else ""
-        return has_docstring, docstring_summary
+    # Create discovery system and run discovery
+    discovery = DocumentationDiscovery(docs_dir=docs_dir)
+    documents = discovery.discover_all()
     
-    # Helper to extract parameters and return type
-    def extract_function_signature(node):
-        # Get parameters
-        parameters = []
-        for arg in node.args.args:
-            if arg.arg not in ('self', 'cls'):  # Skip self and cls
-                param = {"name": arg.arg}
-                # Add type annotation if available
-                if arg.annotation:
-                    try:
-                        param["type"] = ast.unparse(arg.annotation)
-                    except (AttributeError, ValueError):
-                        param["type"] = "unknown"
-                parameters.append(param)
+    logger.info(f"✅ Documentation discovery complete. Found {sum(len(docs) for docs in documents.values())} documents")
+    return documents
+
+def discover_code_structures(src_dir: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """
+    Discover code structures in source code for documentation mapping.
+    
+    This function finds Python modules, classes and functions to map to documentation.
+    
+    Args:
+        src_dir: Source directory to scan (auto-detected if None)
         
-        # Get return type
-        return_type = None
-        if node.returns:
-            try:
-                return_type = ast.unparse(node.returns)
-            except (AttributeError, ValueError):
-                return_type = "unknown"
-        
-        return parameters, return_type
+    Returns:
+        List of discovered code entities with metadata
+    """
+    # Auto-detect source directory if not provided
+    if src_dir is None:
+        repo_root = get_repo_root()
+        src_dir = repo_root / "src"
+        if not src_dir.exists():
+            # Try other common locations
+            for candidate in [repo_root, repo_root / "lib", repo_root / "source"]:
+                if candidate.exists() and any(p.suffix == ".py" for p in candidate.glob("**/*.py")):
+                    src_dir = candidate
+                    break
     
-    for dirpath, _, filenames in os.walk(root_dir):
-        for fname in filenames:
-            if fname.endswith(".py"):
-                filepath = Path(dirpath) / fname
-                try:
-                    with open(filepath, "r", encoding="utf-8") as f:
-                        tree = ast.parse(f.read(), filename=str(filepath))
-                    
-                    # Extract module information
-                    module_docstring = ast.get_docstring(tree)
-                    module_name = filepath.stem
-                    module_path = str(filepath.relative_to(root_dir)).replace('\\', '.').replace('/', '.')
-                    if module_path.endswith('.py'):
-                        module_path = module_path[:-3]
-                    
-                    # Cache module info for relationships
-                    module_cache[module_path] = {
-                        "classes": {},
-                        "functions": {},
-                        "imports": []
-                    }
-                    
-                    # Track imports
-                    imports = []
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.Import):
-                            for name in node.names:
-                                imports.append(name.name)
-                        elif isinstance(node, ast.ImportFrom):
-                            if node.module:
-                                imports.append(node.module)
-                    
-                    module_cache[module_path]["imports"] = imports
-                    
-                    # Process classes
-                    for node in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
-                        has_docstring, docstring_summary = extract_docstring(node)
-                        
-                        # Get inheritance info
-                        bases = [ast.unparse(base) for base in node.bases]
-                        
-                        # Track methods
-                        methods = []
-                        for method_node in [n for n in ast.walk(node) if isinstance(n, ast.FunctionDef)]:
-                            methods.append(method_node.name)
-                        
-                        # Store in module cache
-                        module_cache[module_path]["classes"][node.name] = {
-                            "methods": methods,
-                            "bases": bases
-                        }
-                        
-                        # Add to results
-                        results.append({
-                            "type": "class",
-                            "name": node.name,
-                            "file": str(filepath),
-                            "module": module_path,
-                            "has_docstring": has_docstring,
-                            "docstring_summary": docstring_summary,
-                            "bases": bases,
-                            "methods": methods,
-                            "complexity": calculate_complexity(node)
-                        })
-                    
-                    # Process functions (not methods)
-                    for node in ast.iter_child_nodes(tree):
-                        if isinstance(node, ast.FunctionDef):
-                            has_docstring, docstring_summary = extract_docstring(node)
-                            parameters, return_type = extract_function_signature(node)
-                            
-                            # Store in module cache
-                            module_cache[module_path]["functions"][node.name] = {
-                                "parameters": parameters,
-                                "return_type": return_type
-                            }
-                            
-                            # Add to results
-                            results.append({
-                                "type": "function",
-                                "name": node.name,
-                                "file": str(filepath),
-                                "module": module_path,
-                                "has_docstring": has_docstring,
-                                "docstring_summary": docstring_summary,
-                                "parameters": parameters,
-                                "return_type": return_type,
-                                "complexity": calculate_complexity(node)
-                            })
-                            
-                    # Process class methods (separately to establish relationships)
-                    for class_node in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
-                        for node in [n for n in ast.walk(class_node) if isinstance(n, ast.FunctionDef)]:
-                            has_docstring, docstring_summary = extract_docstring(node)
-                            parameters, return_type = extract_function_signature(node)
-                            
-                            # Add to results
-                            results.append({
-                                "type": "method",
-                                "name": node.name,
-                                "file": str(filepath),
-                                "module": module_path,
-                                "class_name": class_node.name,
-                                "has_docstring": has_docstring,
-                                "docstring_summary": docstring_summary,
-                                "parameters": parameters,
-                                "return_type": return_type,
-                                "complexity": calculate_complexity(node)
-                            })
+    if not src_dir.exists():
+        logger.warning(f"⚠️ Source directory not found at {src_dir}")
+        return []
+    
+    logger.info(f"🔍 Discovering code structures in {src_dir}")
+    
+    discovered_items = []
+    
+    # Find all Python files recursively
+    python_files = list(src_dir.glob("**/*.py"))
+    
+    # Process each Python file
+    for file_path in python_files:
+        try:
+            # Skip __init__.py files for simplicity
+            if file_path.name == "__init__.py":
+                continue
                 
-                except Exception as e:
-                    logger.warning(f"Error analyzing {filepath}: {e}")
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                
+            # Simple regex-based discovery (for demonstration)
+            # In a production system, use the ast module for more accurate parsing
+            
+            # Find classes
+            class_matches = re.finditer(r'class\s+([A-Za-z0-9_]+)(?:\(.*?\))?:', content)
+            for match in class_matches:
+                discovered_items.append({
+                    "name": match.group(1),
+                    "type": "class",
+                    "file": str(file_path)
+                })
+                
+            # Find functions
+            func_matches = re.finditer(r'def\s+([A-Za-z0-9_]+)(?:\(.*?\))?:', content)
+            for match in func_matches:
+                func_name = match.group(1)
+                # Skip private functions
+                if func_name.startswith("_") and not (func_name.startswith("__") and func_name.endswith("__")):
+                    continue
+                    
+                discovered_items.append({
+                    "name": func_name,
+                    "type": "function",
+                    "file": str(file_path)
+                })
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Error processing {file_path}: {e}")
     
-    # Second pass: establish relationships between modules
-    for result in results:
-        if "module" in result:
-            module = result["module"]
-            # Add module relationship information if available
-            if module in module_cache:
-                result["module_imports"] = module_cache[module]["imports"]
-    
-    return results
-    
+    logger.info(f"✅ Code structure discovery complete. Found {len(discovered_items)} items")
+    return discovered_items
+
 if __name__ == "__main__":
-    # Run as a standalone script to test
-    repo_root = Path(__file__).resolve().parent.parent
-    discovery = DocumentationDiscovery(repo_root)
-    documents = discovery.discover_all_documents()
+    import argparse
     
-    # Print summary
-    for category, docs in documents.items():
-        print(f"Category: {category} - {len(docs)} documents")
-        for doc in docs[:5]:  # Show first 5 as example
-            print(f"  - {doc.title} ({doc.path})")
-        if len(docs) > 5:
-            print(f"  ... {len(docs) - 5} more")
+    parser = argparse.ArgumentParser(description="Discover documentation files.")
+    parser.add_argument("docs_dir", nargs="?", type=Path, help="Documentation directory")
+    parser.add_argument("--output", "-o", type=str, help="Output file for discovered documents")
+    parser.add_argument("--format", "-f", choices=["json", "yaml", "text"], default="text",
+                       help="Output format")
+    args = parser.parse_args()
     
-    # Generate TOC
-    toc = discovery.generate_toc_structure(documents)
-    toctrees = discovery.generate_sphinx_toctree(toc)
+    discovered = discover_documentation(args.docs_dir)
     
-    # Check for arguments
-    if "--write" in sys.argv:
-        discovery.write_index_with_toctrees(toctrees)
-        print("\n✅ Index.rst updated")
-        
-    if "--mark-orphans" in sys.argv:
-        discovery.mark_orphaned_documents()
-        print(f"\n✅ Marked {len(discovery.orphaned_documents)} orphaned documents")
+    # Display summary
+    print(f"📚 Documentation Discovery Report:")
+    for category, docs in discovered.items():
+        print(f"  {category.title()}: {len(docs)} documents")
     
-    # If no arguments, print help
-    if len(sys.argv) == 1:
-        print("\nℹ️ Available commands:")
-        print("  --write         : Update index.rst with generated toctrees")
-        print("  --mark-orphans  : Mark orphaned documents with :orphan: directive")
+    # Output detailed information if requested
+    if args.output:
+        if args.format == "json":
+            import json
+            with open(args.output, "w") as f:
+                json.dump({cat: [{"title": doc.title, "path": str(doc.path)} for doc in docs]
+                          for cat, docs in discovered.items()}, f, indent=2)
+        elif args.format == "yaml":
+            try:
+                import yaml
+                with open(args.output, "w") as f:
+                    yaml.dump({cat: [{"title": doc.title, "path": str(doc.path)} for doc in docs]
+                              for cat, docs in discovered.items()}, f)
+            except ImportError:
+                print("⚠️ PyYAML not installed. Using JSON format instead.")
+                import json
+                with open(args.output, "w") as f:
+                    json.dump({cat: [{"title": doc.title, "path": str(doc.path)} for doc in docs]
+                              for cat, docs in discovered.items()}, f, indent=2)
+        else:
+            with open(args.output, "w") as f:
+                for category, docs in discovered.items():
+                    f.write(f"=== {category.title()} ===\n")
+                    for doc in docs:
+                        f.write(f"{doc.title} ({doc.path})\n")
+                    f.write("\n")

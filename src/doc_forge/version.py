@@ -11,33 +11,37 @@ precision, structure, and universal applicability.
 import os
 import re
 from pathlib import Path
-from typing import Dict, Tuple, Union, Optional, Any
+from typing import Dict, Tuple, Union, Optional
 
 # Version components with Eidosian precision
-VERSION_MAJOR = 1
-VERSION_MINOR = 0
+VERSION_MAJOR = 0
+VERSION_MINOR = 1
 VERSION_PATCH = 0
-VERSION_LABEL = ""  # Can be "alpha", "beta", "rc", etc.
+VERSION_LABEL = "alpha"  # Can be "alpha", "beta", "rc", etc.
 VERSION_LABEL_NUM = 0  # For alpha.1, beta.2, etc.
 
 # Assembled version information - the core truth
-VERSION = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"
+__version__ = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"
 if VERSION_LABEL:
-    VERSION += f"-{VERSION_LABEL}"
+    __version__ += f"-{VERSION_LABEL}"
     if VERSION_LABEL_NUM > 0:
-        VERSION += f".{VERSION_LABEL_NUM}"
+        __version__ += f".{VERSION_LABEL_NUM}"
 
 # PEP 440 compatible version for setuptools
-PEP440_VERSION = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"
+__pep440_version__ = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"
 if VERSION_LABEL:
     if VERSION_LABEL == "alpha":
-        PEP440_VERSION += f"a{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else "a0"
+        __pep440_version__ += f"a{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else "a0"
     elif VERSION_LABEL == "beta":
-        PEP440_VERSION += f"b{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else "b0"
+        __pep440_version__ += f"b{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else "b0"
     elif VERSION_LABEL == "rc":
-        PEP440_VERSION += f"rc{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else "rc0"
+        __pep440_version__ += f"rc{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else "rc0"
     else:
-        PEP440_VERSION += f".{VERSION_LABEL}{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else f".{VERSION_LABEL}"
+        __pep440_version__ += f".{VERSION_LABEL}{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else f".{VERSION_LABEL}"
+
+# Global version variables for consistency
+VERSION = __version__
+PEP440_VERSION = __pep440_version__
 
 def get_version_string() -> str:
     """
@@ -106,30 +110,30 @@ def update_version_from_env() -> None:
         match = re.match(r"(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z]+)\.?(\d+)?)?", version_str)
         if match:
             groups = match.groups()
-            VERSION_MAJOR = int(groups[0])
-            VERSION_MINOR = int(groups[1])
-            VERSION_PATCH = int(groups[2])
-            VERSION_LABEL = groups[3] or ""
-            VERSION_LABEL_NUM = int(groups[4]) if groups[4] else 0
+            __version_major__ = int(groups[0])
+            __version_minor__ = int(groups[1])
+            __version_patch__ = int(groups[2])
+            __version_label__ = groups[3] or ""
+            __version_label_num__ = int(groups[4]) if groups[4] else 0
             
             # Update assembled versions
-            VERSION = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"
-            if VERSION_LABEL:
-                VERSION += f"-{VERSION_LABEL}"
-                if VERSION_LABEL_NUM > 0:
-                    VERSION += f".{VERSION_LABEL_NUM}"
+            __version__ = f"{__version_major__}.{__version_minor__}.{__version_patch__}"
+            if __version_label__:
+                __version__ += f"-{__version_label__}"
+                if __version_label_num__ > 0:
+                    __version__ += f".{__version_label_num__}"
             
             # Update PEP440 version
-            PEP440_VERSION = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_PATCH}"
-            if VERSION_LABEL:
-                if VERSION_LABEL == "alpha":
-                    PEP440_VERSION += f"a{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else "a0"
-                elif VERSION_LABEL == "beta":
-                    PEP440_VERSION += f"b{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else "b0"
-                elif VERSION_LABEL == "rc":
-                    PEP440_VERSION += f"rc{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else "rc0"
+            __pep440_version__ = f"{__version_major__}.{__version_minor__}.{__version_patch__}"
+            if __version_label__:
+                if __version_label__ == "alpha":
+                    __pep440_version__ += f"a{__version_label_num__}" if __version_label_num__ > 0 else "a0"
+                elif __version_label__ == "beta":
+                    __pep440_version__ += f"b{__version_label_num__}" if __version_label_num__ > 0 else "b0"
+                elif __version_label__ == "rc":
+                    __pep440_version__ += f"rc{__version_label_num__}" if __version_label_num__ > 0 else "rc0"
                 else:
-                    PEP440_VERSION += f".{VERSION_LABEL}{VERSION_LABEL_NUM}" if VERSION_LABEL_NUM > 0 else f".{VERSION_LABEL}"
+                    __pep440_version__ += f".{__version_label__}{__version_label_num__}" if __version_label_num__ > 0 else f".{__version_label__}"
 
 # Check for version file or environment variable on module load
 file_version = get_version_from_file()

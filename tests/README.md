@@ -1,88 +1,66 @@
-# 🌀 Doc Forge Test Suite
+# 🌀 Doc Forge Tests
 
-This directory contains the Eidosian test suite for Doc Forge, designed with principles of structure, precision, and comprehensive coverage.
+This directory contains tests for the Doc Forge documentation management system, following Eidosian principles of precision, clarity, and completeness.
 
-## 📋 Test Categories
+## Test Organization
 
-Our test suite is organized into the following categories:
+The tests are organized into the following categories:
 
-1. **Unit Tests**: Testing individual components in isolation
-2. **Integration Tests**: Testing interactions between components
-3. **System Tests**: Testing the entire system from end to end
-4. **Performance Tests**: Testing the efficiency and scalability
+- **Unit Tests**: Tests for individual components in isolation
+- **Integration Tests**: Tests for interactions between components
+- **End-to-End Tests**: Tests for complete workflows
 
-## 🧪 Running Tests
+## Running Tests
 
-You can run tests using any of these methods:
-
-### Using pytest (recommended)
+You can run tests using either pytest or the built-in test command:
 
 ```bash
-# Run all tests
-pytest
+# Run with pytest (recommended)
+python -m pytest
 
-# Run with verbose output
-pytest -v
+# Run with the built-in test command
+python -m doc_forge.test_command run
 
-# Run tests from a specific file
-pytest tests/test_specific_module.py
+# Run specific test patterns
+pytest tests/test_source_discovery.py
 
-# Run a specific test
-pytest tests/test_specific_module.py::test_specific_function
+# Run with coverage
+pytest --cov=doc_forge tests/
 ```
 
-### Using unittest
+## Test Coverage Visualization
+
+You can generate a test coverage visualization with:
 
 ```bash
-python -m unittest discover -v
+python -m doc_forge.test_command analyze
 ```
 
-### Using Doc Forge CLI
+This will create a comprehensive test analysis in the `tests/` directory, including:
+
+- A coverage visualization (HTML)
+- A TODO document listing untested components
+- Test stubs for untested components
+- A comprehensive coverage report
+
+## Writing New Tests
+
+When writing new tests:
+
+1. Follow the naming convention: `test_*.py` for files and `test_*` for functions
+2. Use the provided fixtures in `conftest.py` whenever possible
+3. Group related tests into classes inheriting from `unittest.TestCase`
+4. Add appropriate markers to categorize your tests:
+   - `@pytest.mark.unit` for unit tests
+   - `@pytest.mark.integration` for integration tests
+   - `@pytest.mark.e2e` for end-to-end tests
+
+## Automatic Test Generation
+
+Doc Forge can automatically generate test stubs for untested components:
 
 ```bash
-# Run all tests
-doc-forge test run
-
-# Run with verbose output
-doc-forge test run --verbose
-
-# Run tests matching a pattern
-doc-forge test run --pattern "test_update*"
+python -m doc_forge.test_command stubs
 ```
 
-## 📊 Test Coverage
-
-You can generate a coverage report using:
-
-```bash
-# Using pytest with coverage plugin
-pytest --cov=src/doc_forge
-
-# Using Doc Forge test commands
-doc-forge test analyze --format html
-```
-
-## 🛠️ Creating New Tests
-
-1. Use the test template in `tests/templates/test_template.py`
-2. Follow the Eidosian testing principles
-3. Ensure proper isolation of test cases
-4. Use meaningful assertions with clear failure messages
-
-## 🧩 Test Organization
-
-```
-tests/
-├── conftest.py              # Shared pytest fixtures
-├── templates/               # Test templates
-├── unit/                    # Unit tests
-├── integration/             # Integration tests
-├── system/                  # System tests
-└── performance/             # Performance tests
-```
-
-## 📚 Testing Resources
-
-- [Pytest Documentation](https://docs.pytest.org/)
-- [Python unittest Documentation](https://docs.python.org/3/library/unittest.html)
-- [Doc Forge Test Command System](../src/doc_forge/test_command.py)
+This will create test stub files in the `tests/` directory for any untested components in the codebase.

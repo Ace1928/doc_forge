@@ -100,11 +100,10 @@ autosummary_imported_members = True
 
 # AutoAPI Configuration - The heart of automated documentation
 if "sphinx_autoapi" in extensions:
-    # Previously: autoapi_dirs = [str(root_path / "src")]
-    # Eidosian expansion to search the entire repository:
-    autoapi_dirs = [str(root_path)]
+    autoapi_dirs = [str(root_path)]  # Scan entire repo
     autoapi_type = "python"
-    autoapi_template_dir = str(docs_path / "auto_docs") if (docs_path / "_templates" / "autoapi").exists() else None
+    autoapi_outdir = str(docs_path / "auto_docs")
+    autoapi_template_dir = str(docs_path / "_templates" / "autoapi") if (docs_path / "_templates" / "autoapi").exists() else None
     autoapi_options = [
         "members", "undoc-members", "show-inheritance", "show-module-summary",
         "imported-members", "special-members"
