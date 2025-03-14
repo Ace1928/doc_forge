@@ -17,7 +17,7 @@ import re
 import sys
 import logging
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional, Counter
+from typing import Any, Dict, Counter
 import time
 
 # 📊 Self-Aware Logging System
@@ -38,8 +38,11 @@ class DuplicateObjectHarmonizer:
         self.docs_dir = Path(docs_dir)  # 📁 Documentation territory
         self.seen_objects: Dict[str, Path] = {}  # 🔍 First sighting registry
         self.fixed_count = 0  # 🧮 Victory counter
-        self.collision_tracker = Counter()  # 📊 Conflict statistics
-    
+        self.collision_tracker: Counter[Any] = Counter()  # 📊 Conflict statistics
+        logger.debug(f"🌀 Initialized DuplicateObjectHarmonizer for {self.docs_dir}"
+                     f" with {len(self.seen_objects)} seen objects")
+        
+        
     def fix_duplicate_objects(self) -> int:
         """
         Find and fix all duplicate object descriptions with mathematical precision.
