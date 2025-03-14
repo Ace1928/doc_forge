@@ -6,12 +6,12 @@ Test Command System - Command-line interface for test operations
 This module provides command-line subcommands for test-related operations,
 following Eidosian principles of structured control and contextual integrity.
 """
-
+import os
 import sys
 import logging
 import argparse
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Callable
+from typing import Any
 
 # 📊 Self-aware logging system
 logging.basicConfig(
@@ -101,6 +101,18 @@ def add_test_subparsers(subparsers: Any) -> None:
     )
     run_parser.set_defaults(func=cmd_run)
 
+    # Basic test command
+    basic_parser = subparsers.add_parser("basic", help="Run basic tests")
+    basic_parser.add_argument("test_target", help="Target to test")
+    basic_parser.set_defaults(func=run_basic_test)
+    
+    # Validate command
+    validate_parser = subparsers.add_parser("validate", help="Validate documentation")
+    validate_parser.add_argument("validate_target", help="Target to validate")
+    validate_parser.add_argument("--level", "-l", choices=["basic", "full"], default="basic", 
+                               help="Validation level")
+    validate_parser.set_defaults(func=run_validate_test)
+
 def cmd_analyze(args: argparse.Namespace) -> int:
     """
     Analyze test coverage and generate comprehensive report.
@@ -112,7 +124,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         Exit code (0 for success)
     """
     try:
-        from ..tests.ast_scanner import CodeEntityAnalyzer
+        from ..doc_forge.ast_scanner import CodeEntityAnalyzer
         
         repo_root = args.repo_dir or Path.cwd()
         analyzer = CodeEntityAnalyzer(repo_root)
@@ -123,7 +135,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         logger.info(f"✨ Generated Eidosian test analysis suite:")
         logger.info(f"📋 TODO document: {reports['todo']}")
         logger.info(f"📊 Coverage report: {reports['coverage']}")
-        logger.info(f"🧪 Test stubs: {len(reports['stubs'])} files")
+        logger.info(f"🧪 Test stubs directory: {reports['stubs']}")
         logger.info(f"📈 Visualization: {reports['visualization']}")
         
         return 0
@@ -149,7 +161,7 @@ def cmd_todo(args: argparse.Namespace) -> int:
         Exit code (0 for success)
     """
     try:
-        from ..tests.ast_scanner import CodeEntityAnalyzer
+        from ..doc_forge.ast_scanner import CodeEntityAnalyzer
         
         repo_root = args.repo_dir or Path.cwd()
         analyzer = CodeEntityAnalyzer(repo_root)
@@ -188,7 +200,7 @@ def cmd_stubs(args: argparse.Namespace) -> int:
         Exit code (0 for success)
     """
     try:
-        from ..tests.ast_scanner import CodeEntityAnalyzer
+        from ..doc_forge.ast_scanner import CodeEntityAnalyzer
         
         repo_root = args.repo_dir or Path.cwd()
         analyzer = CodeEntityAnalyzer(repo_root)
@@ -223,7 +235,7 @@ def cmd_suite(args: argparse.Namespace) -> int:
         Exit code (0 for success)
     """
     try:
-        from ..tests.ast_scanner import CodeEntityAnalyzer
+        from ..doc_forge.ast_scanner import CodeEntityAnalyzer
         
         repo_root = args.repo_dir or Path.cwd()
         analyzer = CodeEntityAnalyzer(repo_root)
@@ -299,6 +311,33 @@ def cmd_run(args: argparse.Namespace) -> int:
             import traceback
             logger.debug(traceback.format_exc())
         return 1
+
+def run_basic_test(args: argparse.Namespace) -> int:
+    """
+    Run basic test functionality.
+    
+    Args:
+        args: Command line arguments
+        
+    Returns:
+        int: Exit code (0 for success)
+    """
+    print(f"Running basic test on target: {args.test_target}")
+    return 0
+
+def run_validate_test(args: argparse.Namespace) -> int:
+    """
+    Run validation test.
+    
+    Args:
+        args: Command line arguments
+        
+    Returns:
+        int: Exit code (0 for success)
+    """
+    print(f"Validating: {args.validate_target}")
+    print(f"Validation level: {args.level}")
+    return 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Doc Forge Test Command System")

@@ -7,7 +7,15 @@ import argparse
 
 from .doc_forge import create_parser as create_doc_forge_parser
 from .doc_forge import main as doc_forge_main
-from .test_command import add_test_subparsers
+# Fixed import by using relative import and proper path structure
+# Importing from package root is problematic during development
+try:
+    # First try relative import (when installed as package)
+    from ..tests.test_command import add_test_subparsers
+except (ImportError, ValueError):
+    # Fall back to absolute import (when running from source)
+     from tests.test_command import add_test_subparsers # type: ignore[import]
+
 from .version import get_version_string
 
 logging.basicConfig(
@@ -74,7 +82,9 @@ def create_main_parser() -> argparse.ArgumentParser:
     create_doc_forge_parser()
 
     test_parser = subparsers.add_parser("test", help="Testing commands")
-    add_test_subparsers(test_parser.add_subparsers(dest="command", help="Test subcommand"))
+    # Type annotation and proper handling for test subcommands
+    test_subparsers = test_parser.add_subparsers(dest="command", help="Test subcommand")
+    add_test_subparsers(test_subparsers)
 
     return parser
 
