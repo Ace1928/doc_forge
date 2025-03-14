@@ -8,6 +8,10 @@ Eidosian principles of structure, flow, precision, and self-awareness.
 Each component is designed for surgical precision and architectural elegance.
 """
 
+# Import version info from the dedicated version module
+from .version import VERSION as __version__
+from .version import get_version_string, get_version_tuple, get_version_info
+
 # Core path utilities - foundation of structure
 from .utils.paths import get_repo_root, get_docs_dir, resolve_path, ensure_dir
 
@@ -23,8 +27,6 @@ try:
     from .run import main as run_cli
 except ImportError:
     from .doc_forge import main as run_cli
-
-__version__ = "1.0.0"
 
 # Core execution entry points
 def main():

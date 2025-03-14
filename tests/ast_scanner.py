@@ -721,6 +721,360 @@ class CodeEntityAnalyzer:
         
         return reports
 
+    def generate_test_suite(self, output_dir: Optional[Path] = None) -> Path:
+        """
+        Generate a complete test suite with intelligent structure and organization.
+        
+        Unlike generate_test_stubs which creates individual stub files, this creates
+        a comprehensive test suite with proper organization, import structure, and
+        test hierarchy following Eidosian principles.
+        
+        Args:
+            output_dir: Directory to write the test suite (defaults to tests directory)
+            
+        Returns:
+            Path to the generated test suite directory
+        """
+        if not output_dir:
+            output_dir = self.tests_dir / "generated_suite"
+            
+        # Create the suite directory
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # If we don't have discovered items yet, run discovery
+        if not self.discovered_items:
+            self.discover_all_structures()
+            
+        # Create the suite structure
+        suite_structure = {}
+        
+        # Group by top-level modules
+        for item in self.discovered_items:
+            module_parts = item["module_path"].split(".")
+            top_module = module_parts[0] if module_parts else "core"
+            
+            if top_module not in suite_structure:
+                suite_structure[top_module] = []
+                
+            suite_structure[top_module].append(item)
+        
+        # Create __init__.py for the test suite
+        with open(output_dir / "__init__.py", "w", encoding="utf-8") as f:
+            f.write(f'''"""
+Eidosian Test Suite for Doc Forge
+Generated on {datetime.now().strftime('%Y-%m-%d at %H:%M')}
+
+This test suite follows Eidosian principles of:
+- Structure as Control: Perfect organization of test components
+- Flow Like a River: Seamless integration between test modules
+- Precision as Style: Each test designed for maximum insight
+"""
+
+import unittest
+import pytest
+import sys
+import os
+from pathlib import Path
+
+# Add the repository root to the Python path for absolute imports
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
+''')
+        
+        # Create conftest.py with common fixtures
+        with open(output_dir / "conftest.py", "w", encoding="utf-8") as f:
+            f.write('''"""
+Pytest configuration and fixtures for the Eidosian test suite.
+"""
+import pytest
+import os
+import sys
+from pathlib import Path
+
+# Repository paths for test resources
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SRC_DIR = REPO_ROOT / "src"
+TESTS_DIR = REPO_ROOT / "tests"
+
+@pytest.fixture
+def repo_root():
+    """Return the repository root path."""
+    return REPO_ROOT
+
+@pytest.fixture
+def sample_docs_dir(tmp_path):
+    """Create a temporary docs directory for testing."""
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    return docs_dir
+''')
+        
+        # Create test modules for each top-level module
+        for module_name, items in suite_structure.items():
+            module_dir = output_dir / f"test_{module_name}"
+            module_dir.mkdir(exist_ok=True)
+            
+            # Create __init__.py for the module
+            with open(module_dir / "__init__.py", "w", encoding="utf-8") as f:
+                f.write(f'"""Tests for the {module_name} module."""\n')
+            
+            # Group by item type
+            classes = [i for i in items if i["type"] == "class"]
+            functions = [i for i in items if i["type"] == "function"]
+            
+            # Create test_classes.py
+            if classes:
+                with open(module_dir / "test_classes.py", "w", encoding="utf-8") as f:
+                    f.write(f'''"""
+Eidosian tests for {module_name} classes.
+Generated on {datetime.now().strftime('%Y-%m-%d')}
+"""
+import unittest
+import pytest
+from pathlib import Path
+
+# Import the module being tested
+import {module_name}
+
+''')
+                    
+                    # Add test classes for each class
+                    for cls_item in classes:
+                        f.write(f'''
+class Test{cls_item["name"]}(unittest.TestCase):
+    """Test suite for the {cls_item["name"]} class."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        # Initialize test fixtures
+        pass
+        
+    def tearDown(self):
+        """Tear down test fixtures."""
+        # Clean up after tests
+        pass
+    
+    def test_{cls_item["name"].lower()}_initialization(self):
+        """Test {cls_item["name"]} initialization."""
+        # Verify the class can be instantiated
+        instance = {module_name}.{cls_item["name"]}()  # Adjust constructor parameters as needed
+        self.assertIsInstance(instance, {module_name}.{cls_item["name"]})
+    
+''')
+                        
+                        # Add known methods if available
+                        if "methods" in cls_item:
+                            for method in cls_item.get("methods", []):
+                                if not method.startswith("__"):  # Skip dunder methods
+                                    f.write(f'''    def test_{method.lower()}(self):
+        """Test {cls_item["name"]}.{method} method."""
+        # Initialize the class
+        instance = {module_name}.{cls_item["name"]}()
+        
+        # Test the method
+        # result = instance.{method}()  # Add parameters as needed
+        # self.assertTrue(...)  # Add assertions based on expected behavior
+        pass
+        
+''')
+            
+            # Create test_functions.py
+            if functions:
+                with open(module_dir / "test_functions.py", "w", encoding="utf-8") as f:
+                    f.write(f'''"""
+Eidosian tests for {module_name} functions.
+Generated on {datetime.now().strftime('%Y-%m-%d')}
+"""
+import unittest
+import pytest
+from pathlib import Path
+
+# Import the module being tested
+import {module_name}
+
+''')
+                    
+                    # Add tests for each function
+                    for func_item in functions:
+                        parameters = func_item.get("parameters", [])
+                        param_str = ", ".join("..." for _ in parameters)
+                        
+                        f.write(f'''
+def test_{func_item["name"].lower()}():
+    """Test {func_item["name"]} function."""
+    # Call the function with appropriate parameters
+    # result = {module_name}.{func_item["name"]}({param_str})
+    # assert result == ...  # Add assertions based on expected behavior
+    pass
+
+''')
+                    
+                    # Add parameterized tests for functions with parameters
+                    for func_item in functions:
+                        parameters = func_item.get("parameters", [])
+                        if parameters:
+                            param_str = ", ".join(p for p in parameters)
+                            test_cases_str = ", ".join(f"{p}=..." for p in parameters)
+                            
+                            f.write(f'''
+@pytest.mark.parametrize("{param_str}", [
+    ({test_cases_str}),  # Test case 1
+    ({test_cases_str}),  # Test case 2
+    ({test_cases_str}),  # Test case 3
+])
+def test_{func_item["name"].lower()}_parametrized({param_str}):
+    """Test {func_item["name"]} function with parameterized inputs."""
+    # Call the function with the parameterized inputs
+    # result = {module_name}.{func_item["name"]}({param_str})
+    # assert result == ...  # Add assertions based on expected behavior
+    pass
+
+''')
+        
+        # Create a master test runner
+        with open(output_dir / "run_tests.py", "w", encoding="utf-8") as f:
+            f.write('''#!/usr/bin/env python3
+"""
+Eidosian Test Runner - Execute the complete test suite with precision.
+"""
+import sys
+import os
+import unittest
+import pytest
+from pathlib import Path
+
+# Add the repository root to the Python path
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
+
+# Function to run unittest test suite
+def run_unittest_suite():
+    """Run the complete unittest test suite."""
+    loader = unittest.TestLoader()
+    start_dir = Path(__file__).parent
+    suite = loader.discover(start_dir, pattern="test_*.py")
+    
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
+    return result.wasSuccessful()
+
+# Function to run pytest test suite
+def run_pytest_suite():
+    """Run the complete pytest test suite."""
+    start_dir = Path(__file__).parent
+    args = ["-xvs", str(start_dir)]
+    return pytest.main(args) == 0
+
+if __name__ == "__main__":
+    # Determine which test runner to use
+    if len(sys.argv) > 1 and sys.argv[1] == "--pytest":
+        success = run_pytest_suite()
+    else:
+        success = run_unittest_suite()
+        
+    sys.exit(0 if success else 1)
+''')
+        
+        return output_dir
+
+    def export_to_json(self, output_path: Optional[Path] = None) -> Path:
+        """
+        Export the test analysis results to a structured JSON file.
+        
+        Creates a comprehensive test analysis document that can be used by
+        other tools for visualization, reporting, or CI/CD integration.
+        
+        Args:
+            output_path: Path to write the JSON file (defaults to tests/analysis.json)
+            
+        Returns:
+            Path to the generated JSON file
+        """
+        # Ensure we have all necessary data
+        if not self.discovered_items:
+            self.discover_all_structures()
+            
+        if not hasattr(self, 'module_structure'):
+            self.analyze_tests()
+        
+        # Create test suggestions if needed
+        suggestions = self.generate_test_suggestions()
+        
+        # Default output path
+        if output_path is None:
+            output_path = self.tests_dir / "doc_forge_test_analysis.json"
+        
+        # Build the analysis data structure
+        analysis = {
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "version": "1.0.0",
+                "repo": str(self.repo_root),
+                "generator": "Eidosian Test Analyzer"
+            },
+            "summary": {
+                "total_items": len(self.discovered_items),
+                "tested_items": len(self._analyze_coverage()["tested"]),
+                "untested_items": len(self._analyze_coverage()["untested"]),
+                "coverage_percentage": self._calculate_coverage_percentage(self._analyze_coverage())
+            },
+            "modules": {},
+            "test_files": {},
+            "high_priority_items": [
+                {
+                    "name": item["name"],
+                    "type": item["type"],
+                    "module": item["module_path"],
+                    "complexity": item.get("complexity", 1),
+                    "suggested_test": suggestion["test_function_name"],
+                    "suggested_approach": suggestion["suggested_approach"]
+                }
+                for suggestion, item in [
+                    (s, s["item"]) for s in suggestions["by_priority"]["high"]
+                ]
+            ]
+        }
+        
+        # Add module-level details
+        for module_name, data in self._analyze_coverage()["by_module"].items():
+            # Skip empty modules
+            if not data["tested"] and not data["untested"]:
+                continue
+                
+            total = len(data["tested"]) + len(data["untested"])
+            coverage = (len(data["tested"]) / total * 100) if total > 0 else 100
+            
+            analysis["modules"][module_name] = {
+                "coverage_percentage": coverage,
+                "tested_count": len(data["tested"]),
+                "untested_count": len(data["untested"]),
+                "tested_items": [
+                    {
+                        "name": item["name"],
+                        "type": item["type"],
+                        "complexity": item.get("complexity", 1),
+                        "has_docstring": item.get("has_docstring", False)
+                    }
+                    for item in data["tested"]
+                ],
+                "untested_items": [
+                    {
+                        "name": item["name"],
+                        "type": item["type"],
+                        "complexity": item.get("complexity", 1),
+                        "has_docstring": item.get("has_docstring", False)
+                    }
+                    for item in data["untested"]
+                ]
+            }
+        
+        # Write the JSON file
+        with open(output_path, "w", encoding="utf-8") as f:
+            import json
+            json.dump(analysis, f, indent=2)
+        
+        return output_path
+
 def generate_todo_document():
     """Generate a comprehensive TODO document for all code structures."""
     repo_root = Path(__file__).resolve().parents[1]

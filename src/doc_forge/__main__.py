@@ -10,6 +10,7 @@ and minimal friction, redirecting to the appropriate command interface.
 
 import sys
 import argparse
+import logging
 from pathlib import Path
 
 def main():
@@ -37,6 +38,15 @@ def main():
     validate_parser.add_argument("repo_path", nargs='?', type=Path, default=None,
                                help="Repository path (default: auto-detect)")
     
+    # Add test subcommands
+    try:
+        from .test_command import add_test_subparsers
+        test_parser = subparsers.add_parser("test", help="Test-related commands")
+        test_subparsers = test_parser.add_subparsers(dest="test_command", help="Test command to execute")
+        add_test_subparsers(test_subparsers)
+    except ImportError as e:
+        print(f"Warning: Test commands not available: {e}")
+    
     # Add global debugging option
     parser.add_argument('--debug', action='store_true', 
                       help='Enable debug logging')
@@ -46,7 +56,6 @@ def main():
     
     # Enable debug logging if requested
     if getattr(args, 'debug', False):
-        import logging
         logging.basicConfig(level=logging.DEBUG)
     
     # Route to the appropriate command
@@ -66,6 +75,20 @@ def main():
             discrepancies = validate_docs(args.repo_path)
             sys.exit(1 if discrepancies else 0)
             
+        elif args.command == "test" and hasattr(args, "test_command") and args.test_command:
+            # Execute the appropriate test subcommand
+            if hasattr(args, "func"):
+                result = args.func(args)
+                sys.exit(result)
+            else:
+                print("No test subcommand specified. Available subcommands:")
+                print("  analyze - Analyze test coverage")
+                print("  todo    - Generate test TODO document")
+                print("  stubs   - Generate test stubs")
+                print("  suite   - Generate test suite")
+                print("  run     - Run tests")
+                sys.exit(1)
+            
         else:
             # Default to the main CLI if no command specified or no args
             from .run import main as run_main
@@ -75,7 +98,7 @@ def main():
         print(f"❌ Error importing module: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Error executing doc_forge: {e}")
+        print(f"❌ Error executing command: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
