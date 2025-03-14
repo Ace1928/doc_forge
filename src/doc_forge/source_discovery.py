@@ -14,14 +14,13 @@ Following Eidosian principles of:
 
 import os
 import re
-import sys
 import logging
 from pathlib import Path
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple, Optional, Any
+from typing import Dict, List, Set, Optional, Any
 
 # Import project-wide information
-from .global_info import get_doc_structure, get_paths
+from .global_info import get_doc_structure
 from .utils.paths import get_repo_root, get_docs_dir
 
 # 📊 Self-aware logging system
@@ -336,7 +335,7 @@ class DocumentationDiscovery:
         }
         
         # Process discovered documents and add to TOC
-        for category, docs in documents.items():
+        for docs in documents.values():
             for doc in docs:
                 # Determine target section
                 target_section = section_mapping.get(doc.section, "reference")
@@ -516,7 +515,7 @@ class DocumentationDiscovery:
         reference_map = {}
         
         # Process all discovered documents
-        for category, docs in self.documents.items():
+        for docs in self.documents.values():
             for doc in docs:
                 if doc.references:
                     reference_map[str(doc.path)] = doc.references

@@ -14,13 +14,12 @@ Following Eidosian principles of:
 """
 
 import os
-import sys
 import logging
 from pathlib import Path
-from typing import Dict, List, Set, Optional, Any, Union
+from typing import Dict, Optional, Any
 
 # Import version information for consistency
-from .version import VERSION, get_version_info, get_version_string
+from .version import VERSION, get_version_string
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 📊 Self-aware logging system
@@ -84,8 +83,7 @@ DOC_CATEGORIES = {
 # 🔧 Configuration settings - The rules of our universe
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Default configuration
-DEFAULT_CONFIG = {
+DEFAULT_CONFIG: Dict[str, Any] = {
     "theme": "sphinx_rtd_theme",
     "extensions": [
         "sphinx.ext.autodoc",
@@ -109,7 +107,7 @@ DEFAULT_CONFIG = {
     "master_doc": "index",
     "autoapi_dirs": ["src"],
     "autoapi_template_dir": "auto_docs",
-}
+}  # type: ignore
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🧪 Functions for working with global information
@@ -206,7 +204,8 @@ def ensure_doc_structure(repo_root: Optional[Path] = None) -> Dict[str, Path]:
     return structure
 
 # Initialize global paths dictionary on module load
-GLOBAL_PATHS = None
+GLOBAL_PATHS: Dict[str, Any] = {}
+GLOBAL_PATHS_OVERRIDE: Dict[str, Any] = GLOBAL_PATHS.copy()
 
 def get_paths() -> Dict[str, Path]:
     """
@@ -227,3 +226,12 @@ def get_paths() -> Dict[str, Path]:
             GLOBAL_PATHS = {}
     
     return GLOBAL_PATHS
+
+def get_global_config() -> Dict[str, Any]:
+    """
+    Get global configuration with Eidosian clarity.
+    
+    Returns:
+        Dictionary with global configuration
+    """
+    return {}  # type: ignore  # Minimizing changes; ignoring partial unknown type

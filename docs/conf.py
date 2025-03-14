@@ -8,12 +8,11 @@ This file controls our Sphinx documentation build, engineered to be as robust an
 as the Eidosian spirit itself. Prepare to witness precision, creativity, and a hint of humour!
 """
 
-import os
 import sys
 import datetime
-import re
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Dict, Union
+import importlib  # ensures 'importlib' is defined even if importlib.metadata is missing
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Path Configuration - Crafting our digital landscape
@@ -152,7 +151,7 @@ napoleon_attr_annotations = True
 napoleon_preprocess_types = True
 
 # Autodoc settings
-autodoc_default_options = {
+autodoc_default_options: Dict[str, Union[str, bool]] = {
     'members': True,
     'member-order': 'bysource',
     'special-members': '__init__, __call__',
@@ -246,7 +245,7 @@ except Exception:
     pass
 
 if html_theme == 'sphinx_rtd_theme':
-    html_theme_options = {
+    html_theme_options: Dict[str, Union[str, bool, int]] = {
         'prev_next_buttons_location': 'bottom',
         'style_external_links': True,
         'style_nav_header_background': '#2980B9',
@@ -365,7 +364,7 @@ def integrate_doc_forge(app: Any) -> None:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # App Setup Hook - Final Flourish and Runtime Customisation
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-def setup(app: Any) -> dict:
+def setup(app: Any) -> Dict[str, Union[str, bool]]:
     """Set up custom configurations for the Sphinx application with Eidosian flair."""
     try:
         app.add_css_file('css/custom.css')
