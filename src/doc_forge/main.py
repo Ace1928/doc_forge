@@ -8,11 +8,7 @@ redirecting to the appropriate command handler based on user input.
 Following Eidosian principles of flow and precision.
 """
 
-import os
 import sys
-import logging
-from pathlib import Path
-from typing import List, Optional
 
 # Import runner to avoid circular imports
 from .run import main as run_main
