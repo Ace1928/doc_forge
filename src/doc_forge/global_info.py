@@ -136,7 +136,7 @@ def get_doc_structure(repo_root: Optional[Path] = None) -> Dict[str, Path]:
         from .utils.paths import get_repo_root
         repo_root = get_repo_root()
     
-    result = {}
+    result: Dict[str, Path] = {}
     
     # Add the root docs directory
     docs_dir = repo_root / DOC_STRUCTURE["root"]
@@ -204,8 +204,8 @@ def ensure_doc_structure(repo_root: Optional[Path] = None) -> Dict[str, Path]:
     return structure
 
 # Initialize global paths dictionary on module load
-GLOBAL_PATHS: Dict[str, Any] = {}
-GLOBAL_PATHS_OVERRIDE: Dict[str, Any] = GLOBAL_PATHS.copy()
+_global_paths: Dict[str, Any] = {}
+GLOBAL_PATHS_OVERRIDE: Dict[str, Any] = {}
 
 def get_paths() -> Dict[str, Path]:
     """
@@ -214,18 +214,18 @@ def get_paths() -> Dict[str, Path]:
     Returns:
         Dictionary mapping path keys to absolute paths
     """
-    global GLOBAL_PATHS
+    global _global_paths
     
-    if GLOBAL_PATHS is None:
+    if not _global_paths:
         try:
             from .utils.paths import get_repo_root
             repo_root = get_repo_root()
-            GLOBAL_PATHS = get_doc_structure(repo_root)
+            _global_paths = get_doc_structure(repo_root)
         except Exception as e:
             logger.error(f"❌ Failed to initialize global paths: {e}")
-            GLOBAL_PATHS = {}
+            _global_paths = {}
     
-    return GLOBAL_PATHS
+    return _global_paths
 
 def get_global_config() -> Dict[str, Any]:
     """

@@ -2,7 +2,6 @@
 """Migrate existing documentation to the new structure with Eidosian precision."""
 import logging
 import shutil
-import sys
 import argparse
 from pathlib import Path
 from typing import Tuple, List, Dict, Set
@@ -26,7 +25,7 @@ def collect_documents(
     Returns:
         List of recognized document paths
     """
-    matched_files = []
+    matched_files: List[Path] = []
     pattern = "**/*.md" if recursive else "*.md"
     
     for path_item in docs_dir.glob(pattern):
@@ -106,7 +105,7 @@ def ensure_reference_files(docs_dir: Path, reference_files: Dict[str, str]) -> S
     Returns:
         Set of created file names for tracking
     """
-    created_files = set()
+    created_files: Set[str] = set()
     
     for filename, target_dir in reference_files.items():
         source_path = docs_dir / filename
@@ -134,7 +133,7 @@ def migrate_docs(
     docs_dir: Path = Path("docs"),
     handle_auto: bool = False,
     skip_existing: bool = False,
-    config_mapping: Dict[str, str] = None,
+    config_mapping: Dict[str, str] = {},
     recursive: bool = False
 ) -> Tuple[int, int, int]:
     """
@@ -160,7 +159,7 @@ def migrate_docs(
         "api_reference.md":      "source/reference/",
     }
 
-    if config_mapping:
+    if not config_mapping:
         default_content_mapping.update(config_mapping)
 
     universal_dirs = [
