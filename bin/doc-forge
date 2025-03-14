@@ -32,6 +32,8 @@ def find_package_root() -> Path:
     for parent in script_dir.parents:
         if (parent / "src" / "doc_forge").is_dir():
             return parent
+    else:
+        return script_dir
             
     # Last resort: just return script's parent and hope for the best
     return script_dir.parent

@@ -17,6 +17,7 @@ import time
 import argparse
 import logging
 import subprocess
+import shlex
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union, Set, Any, Callable
 
@@ -66,11 +67,7 @@ def run_command(command: Union[List[str], str], cwd: Optional[Path] = None) -> T
     
     # Convert string command to list if needed
     if isinstance(command, str):
-        logger.debug(f"Executing: {command}")
-        shell = True
-    else:
-        logger.debug(f"Executing: {' '.join(command)}")
-        shell = False
+        command = shlex.split(command)
     
     try:
         process = subprocess.Popen(
@@ -78,7 +75,7 @@ def run_command(command: Union[List[str], str], cwd: Optional[Path] = None) -> T
             cwd=process_cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            shell=shell,
+            shell=False,
             universal_newlines=True
         )
         stdout, stderr = process.communicate()
@@ -95,7 +92,7 @@ def run_command(command: Union[List[str], str], cwd: Optional[Path] = None) -> T
         return process.returncode, stdout, stderr
         
     except Exception as e:
-        logger.error(f"Command execution failed: {e}")
+        logger.error(f"Command execution failed: {command}, Error: {e}")
         return 1, "", str(e)
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
