@@ -264,8 +264,9 @@ jobs:
     steps:
       - name: 📊 Pipeline Status
         run: |
-          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
               echo "::error::Pipeline failed!"
               exit 1
           else
               echo "::notice::All checks passed! ʕ •ᴥ•ʔ"
+          fi
