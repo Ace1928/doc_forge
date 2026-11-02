@@ -160,8 +160,7 @@ jobs:
       - name: 📝 Build docs
         run: |
           if [ -d "docs" ]; then
-              cd docs
-              make html
+              sphinx-build -b html docs docs/_build/html
           else
               echo "::warning::No docs directory found, skipping documentation build"
               mkdir -p _build/html
