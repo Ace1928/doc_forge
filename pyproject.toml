@@ -90,8 +90,11 @@ docs = [
 doc-forge = "doc_forge:main"
 
 [tool.setuptools]
-packages = ["doc_forge"]
 package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["doc_forge", "doc_forge.*"]
 
 [tool.setuptools.package-data]
 doc_forge = ["py.typed"]

@@ -78,16 +78,22 @@ def get_repo_root() -> Path:
     logger.warning(f"⚠️ Could not determine repo root, using current directory: {_REPO_ROOT}")
     return _REPO_ROOT
 
-def get_docs_dir() -> Path:
+def get_docs_dir(*, create: bool = True) -> Path:
     """
     Get the documentation directory with perfect precision.
-    
+
+    Args:
+        create: Create the default directory when no existing location is found.
+
     Returns:
         Path to documentation directory
     """
     global _DOCS_DIR
     
     if _DOCS_DIR is not None:
+        if create and not _DOCS_DIR.is_dir():
+            _DOCS_DIR.mkdir(parents=True, exist_ok=True)
+            logger.warning(f"⚠️ Created missing documentation directory: {_DOCS_DIR}")
         return _DOCS_DIR
     
     # First, get the repo root
@@ -111,10 +117,11 @@ def get_docs_dir() -> Path:
             logger.warning(f"⚠️ Using non-standard docs directory: {_DOCS_DIR}")
             return _DOCS_DIR
     
-    # Create it if it doesn't exist
-    docs_dir.mkdir(parents=True, exist_ok=True)
+    # Resolve without creating it for read-only operations such as CLI help.
+    if create:
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        logger.warning(f"⚠️ Created missing documentation directory: {docs_dir}")
     _DOCS_DIR = docs_dir
-    logger.warning(f"⚠️ Created missing documentation directory: {_DOCS_DIR}")
     return _DOCS_DIR
 
 def resolve_path(path: Union[str, Path], relative_to: Optional[Path] = None) -> Path:

@@ -45,10 +45,13 @@ from .fix_cross_refs import fix_ambiguous_references
 from .fix_rst_syntax import RstSyntaxPerfector
 from .fix_docstrings import DocstringFixer
 from .fix_duplicate_objects import DuplicateObjectHarmonizer
-try:
-    from .run import main as run_cli
-except ImportError:
-    from .doc_forge import main as run_cli
+def run_cli() -> int:
+    """Load the command-line entry point only when it is actually invoked."""
+    try:
+        from .run import main as entrypoint
+    except ImportError:
+        from .doc_forge import main as entrypoint
+    return entrypoint()
 
 # Core execution entry points
 def main() -> int:

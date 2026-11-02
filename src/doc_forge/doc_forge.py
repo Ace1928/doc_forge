@@ -34,7 +34,7 @@ logger = logging.getLogger("doc_forge")
 # 🛠️ Core paths
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 REPO_ROOT = get_repo_root()
-DOCS_DIR = get_docs_dir()
+DOCS_DIR = get_docs_dir(create=False)
 BUILD_DIR = DOCS_DIR / "_build"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 
@@ -331,6 +331,9 @@ def main() -> int:
 
     parser = create_parser()
     args = parser.parse_args()
+
+    if args.command:
+        get_docs_dir()
 
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
