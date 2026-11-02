@@ -414,7 +414,10 @@ class DocumentationDiscovery:
             for ext in self.doc_extensions:
                 all_sources["user"].extend(
                     p for p in user_docs_dir.glob(f"**/*{ext}")
-                    if not any(part.startswith("_") for part in p.parts)
+                    if not any(
+                        part.startswith("_")
+                        for part in p.relative_to(user_docs_dir).parts
+                    )
                 )
         auto_docs_dir = self.doc_structure.get("auto_docs", self.docs_dir / "auto_docs")
         autoapi_dirs = [
@@ -428,14 +431,20 @@ class DocumentationDiscovery:
                 for ext in self.doc_extensions:
                     all_sources["auto"].extend(
                         p for p in directory.glob(f"**/*{ext}")
-                        if not any(part.startswith("_") for part in p.parts)
+                        if not any(
+                            part.startswith("_")
+                            for part in p.relative_to(directory).parts
+                        )
                     )
         ai_docs_dir = self.doc_structure.get("ai_docs", self.docs_dir / "ai_docs")
         if ai_docs_dir.exists():
             for ext in self.doc_extensions:
                 all_sources["ai"].extend(
                     p for p in ai_docs_dir.glob(f"**/*{ext}")
-                    if not any(part.startswith("_") for part in p.parts)
+                    if not any(
+                        part.startswith("_")
+                        for part in p.relative_to(ai_docs_dir).parts
+                    )
                 )
         all_sources["orphaned"] = self.orphaned_documents
         return all_sources
